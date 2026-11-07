@@ -18,6 +18,45 @@ Saat ini tersedia **Season 18** (Agustus–November 2026, playoff masih berjalan
 
 Fitur lain: ikon resmi setiap hero, pilihan musim, tema terang/gelap, tampilan responsif untuk HP, dan animasi ringan (bagian halaman muncul berurutan, angka papan skor berhitung, batang statistik tumbuh, serta draft hero "lock-in" mengikuti urutan pick MLBB). Animasi otomatis mati kalau perangkat memakai pengaturan kurangi gerakan.
 
+## Skor live
+
+Saat ada pertandingan, website menampilkan bilah **LIVE** berisi skor seri yang sedang berjalan, link siaran resmi, serta tanda live di kartu match, bracket, dan halaman match. Setelah match selesai, halaman match juga menampilkan statistik setiap pemain per game: hero, K/D/A, gold, dan damage.
+
+Cara kerjanya:
+
+1. `scripts/live_update.py` membaca jadwal di [situs resmi MPL ID](https://id-mpl.com/schedule) (skor seri, status live, link siaran) dan halaman detail match (statistik pemain). Hasilnya disimpan di `data/live.json` dan `data/live.js`.
+2. Website membaca ulang `data/live.json` setiap 30 detik saat ada match live (setiap 2 menit bila tidak ada) dan memperbarui tampilan tanpa memuat ulang halaman.
+3. Data Liquipedia tetap menjadi dasar. Data live hanya mengisi yang belum ada: tim yang masih TBD, skor match yang sedang berjalan, pemenang match yang baru selesai, dan statistik pemain.
+
+### Online lewat GitHub Pages (otomatis)
+
+Repo ini sudah berisi dua workflow:
+
+- **Skor live MPL ID** (`.github/workflows/live-score.yml`) berjalan setiap 10 menit pada pukul 12.00–23.59 WIB. Setiap kali berjalan, ia memeriksa situs resmi tiap 45 detik selama ±9 menit, lalu commit `data/live.*` hanya saat skor berubah. Pada hari tanpa pertandingan, ia langsung berhenti.
+- **Deploy website** (`.github/workflows/pages.yml`) men-deploy website ke GitHub Pages setiap ada push, dan setiap kali skor live berubah.
+
+Yang perlu dilakukan sekali saja:
+
+1. Buka **Settings → Pages** di repo GitHub.
+2. Pada **Build and deployment → Source**, pilih **GitHub Actions**.
+3. Website akan tersedia di `https://<username>.github.io/<nama-repo>/`. Untuk repo ini: <https://reihanaditya862-web.github.io/mpl-idea/>.
+
+Jadwal GitHub Actions kadang terlambat beberapa menit. Biasanya skor di website tertinggal sekitar 1–3 menit dari situs resmi.
+
+### Live di komputer sendiri
+
+Jalankan dua perintah ini di dua terminal, lalu buka <http://localhost:8000>:
+
+```bash
+python3 scripts/live_update.py --watch 30
+```
+
+```bash
+python3 -m http.server 8000
+```
+
+Kalau `index.html` dibuka langsung sebagai file (tanpa server), website memakai snapshot terakhir di `data/live.js` dan tidak memperbarui otomatis.
+
 ## Menjalankan
 
 Situs ini statis (HTML, CSS, dan JavaScript tanpa framework dan tanpa build step).
@@ -76,6 +115,8 @@ assets/img/           logo tim & foto pemain (hasil scripts/fetch_media.py)
 data/                 data hasil kedua script
 scripts/build_data.py pengambil & pengolah data Liquipedia
 scripts/fetch_media.py pengambil logo & foto dari id-mpl.com
+scripts/live_update.py pengambil skor live dari id-mpl.com
+.github/workflows/    skor live otomatis & deploy GitHub Pages
 ```
 
 ## Catatan data

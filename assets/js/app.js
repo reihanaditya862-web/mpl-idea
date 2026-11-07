@@ -70,7 +70,9 @@
   }
 
   let renderToken = 0;
-  async function render() {
+  /** opts.quiet: render ulang karena skor live berubah (tanpa animasi, posisi scroll dipertahankan). */
+  async function render(opts = {}) {
+    const quiet = opts && opts.quiet === true;
     const route = parse();
     const token = ++renderToken;
     if (!route.sid) {
@@ -87,6 +89,11 @@
       return;
     }
     if (token !== renderToken) return;
+    syncLive(season);
+    if (quiet && !LIVE_VIEWS.includes(route.view)) {
+      updateLiveBar(route.sid);
+      return;
+    }
     const fn = V[route.view] || V.home;
     let view;
     try {
@@ -95,9 +102,15 @@
       console.error(e);
       view = V.notFound(route.sid, 'Terjadi kesalahan saat menampilkan halaman ini.');
     }
+    const y = window.scrollY;
     main.innerHTML = view.body.toString();
     document.title = `${view.title} · MPL ID Hub`;
     if (view.mount) view.mount(main);
+    updateLiveBar(route.sid);
+    if (quiet) {
+      window.scrollTo(0, y);
+      return;
+    }
     animate(main);
     const updated = document.getElementById('data-updated');
     if (updated) updated.textContent = season.generatedAt ? `Data diperbarui ${fmt.date(season.generatedAt, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} WIB.` : '';
@@ -187,6 +200,77 @@
     } catch (e) { /* abaikan */ }
   });
 
-  window.addEventListener('hashchange', render);
+  // --------------------------------------------------------- skor live
+  // data/live.json dibuat scripts/live_update.py (GitHub Actions / lokal).
+  // Saat situs dibuka lewat http(s), file itu dibaca ulang berkala; saat
+  // dibuka dari file atau di halaman statis, data/live.js menjadi snapshot.
+  const LIVE_VIEWS = ['home', 'regular', 'playoffs', 'teams', 'team', 'match'];
+  const liveBar = document.getElementById('live-bar');
+  const canPoll = /^https?:$/.test(location.protocol);
+  let liveVersion = 0;
+  let polling = false;
+  let pollTimer = null;
+
+  function syncLive(season) {
+    if (season._liveVersion === liveVersion) return;
+    MPL.stats.applyLive(season, MPL.live || null);
+    season._liveVersion = liveVersion;
+  }
+
+  function updateLiveBar(sid) {
+    if (!liveBar) return;
+    const season = MPL.seasons[sid];
+    const lives = season ? MPL.stats.liveMatches(season) : [];
+    if (!lives.length) {
+      liveBar.hidden = true;
+      liveBar.innerHTML = '';
+      return;
+    }
+    const at = MPL.live && MPL.live.updatedAt ? fmt.time(MPL.live.updatedAt) : '';
+    const note = polling ? `Diperbarui otomatis${at ? ', skor terakhir berubah ' + at : ''}` : `Snapshot skor ${at}`;
+    liveBar.innerHTML = lives.map((m) => {
+      const t = m.teams.map((x) => (x ? MPL.util.team(x) : null));
+      return html`<div class="wrap live-inner">
+        <span class="pill pill-live">Live</span>
+        <a class="live-score" href="${V.href(sid, 'match', m.id)}">${MPL.util.teamBadge(m.teams[0], 'sm')}<b>${t[0] ? t[0].short : 'TBD'}</b><span class="ls-num">${m.score[0]}<i>–</i>${m.score[1]}</span><b>${t[1] ? t[1].short : 'TBD'}</b>${MPL.util.teamBadge(m.teams[1], 'sm')}</a>
+        <span class="live-meta">${m.stage || m.label} · Bo${m.bestOf}</span>
+        <span class="live-note">${note}</span>
+        ${m.official && m.official.watch ? html`<a class="btn btn-sm live-watch" href="${m.official.watch}" target="_blank" rel="noopener">Tonton siaran</a>` : ''}
+      </div>`.toString();
+    }).join('');
+    liveBar.hidden = false;
+  }
+
+  function anyLive() {
+    return ((MPL.live && MPL.live.matches) || []).some((m) => m.status === 'live');
+  }
+
+  async function poll() {
+    clearTimeout(pollTimer);
+    if (document.hidden) return;
+    try {
+      const r = await fetch('data/live.json?t=' + Date.now(), { cache: 'no-store' });
+      if (r.ok) {
+        const data = await r.json();
+        const firstOk = !polling;
+        polling = true;
+        if (data && data.mplLive && (!MPL.live || data.updatedAt !== MPL.live.updatedAt)) {
+          MPL.live = data;
+          liveVersion++;
+          render({ quiet: true });
+        } else if (firstOk) {
+          updateLiveBar(parse().sid);
+        }
+      }
+    } catch (e) { /* jaringan putus atau file belum ada: coba lagi nanti */ }
+    pollTimer = setTimeout(poll, anyLive() ? 30000 : 120000);
+  }
+
+  if (canPoll) {
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+    setTimeout(poll, 1500);
+  }
+
+  window.addEventListener('hashchange', () => render());
   render();
 })();

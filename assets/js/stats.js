@@ -330,5 +330,71 @@
     });
   }
 
-  MPL.stats = { matches, findMatch, eachGame, standings, zone, placements, prizeFor, champion, status, nextMatch, resolvePlayer, heroStats, heroGames, teamStats, teamMatches, summary };
+  // ---------------------------------------------------------------- Live
+  /**
+   * Gabungkan skor live dari situs resmi (data/live.json) ke data musim.
+   * Data Liquipedia tetap menjadi dasar; live hanya mengisi yang belum ada:
+   * tim TBD, skor seri yang sedang berjalan, pemenang match yang baru
+   * selesai, serta statistik pemain per game. Aman dipanggil berulang.
+   */
+  function applyLive(season, live) {
+    const all = matches(season);
+    all.forEach((m) => {
+      if (m._base) Object.assign(m, { teams: m._base.teams.slice(), score: m._base.score.slice(), winner: m._base.winner });
+      delete m.live;
+      delete m.official;
+    });
+    if (live && Array.isArray(live.matches)) {
+      const start = season.meta.startDate || '0000';
+      const end = season.meta.endDate || '9999';
+      const key = (ts) => ts.filter(Boolean).slice().sort().join('|');
+      live.matches.forEach((lm) => {
+        const day = (lm.date || '').slice(0, 10);
+        if (!day || day < start || day > end || !Array.isArray(lm.teams)) return;
+        const hm = (lm.date || '').slice(11, 16);
+        const same = all.filter((m) => m.phase === lm.phase && (m.date || '').slice(0, 10) === day);
+        const m =
+          same.find((c) => c.teams.filter(Boolean).length === 2 && key(c.teams) === key(lm.teams)) ||
+          same.find((c) => (c.date || '').slice(11, 16) === hm && c.teams.some((t) => t && lm.teams.includes(t))) ||
+          same.find((c) => (c.date || '').slice(11, 16) === hm);
+        if (!m) return;
+        if (!m._base) m._base = { teams: m.teams.slice(), score: m.score.slice(), winner: m.winner };
+        const flip = (m.teams[0] && lm.teams[1] === m.teams[0]) || (m.teams[1] && lm.teams[0] === m.teams[1]);
+        const lt = flip ? [lm.teams[1], lm.teams[0]] : lm.teams;
+        const ls = flip ? [lm.score[1], lm.score[0]] : lm.score;
+        m.teams = m.teams.map((t, i) => t || lt[i] || null);
+        const played = m.games.length;
+        if (ls[0] != null && ls[1] != null && ls[0] + ls[1] > played) {
+          m.score = ls.slice();
+          const need = Math.floor(m.bestOf / 2) + 1;
+          if (!m.winner && lm.status === 'done') m.winner = ls[0] >= need ? 1 : ls[1] >= need ? 2 : null;
+        }
+        m.live = lm.status === 'live' && !m._base.winner;
+        m.official = {
+          id: lm.officialId,
+          status: lm.status,
+          watch: lm.watch || null,
+          updatedAt: live.updatedAt || null,
+          games: (lm.games || []).map((g) => {
+            const gf = g.teams && g.teams[0] && g.teams[0] === m.teams[1];
+            return {
+              n: g.n,
+              duration: g.duration,
+              winner: g.winner ? (gf ? 3 - g.winner : g.winner) : null,
+              kills: gf ? (g.kills || []).slice().reverse() : g.kills || [],
+              players: gf ? (g.players || []).slice().reverse() : g.players || [[], []],
+            };
+          }),
+        };
+      });
+    }
+    cache.delete(season);
+    return all.some((m) => m.live);
+  }
+
+  function liveMatches(season) {
+    return matches(season).filter((m) => m.live);
+  }
+
+  MPL.stats = { applyLive, liveMatches, matches, findMatch, eachGame, standings, zone, placements, prizeFor, champion, status, nextMatch, resolvePlayer, heroStats, heroGames, teamStats, teamMatches, summary };
 })();

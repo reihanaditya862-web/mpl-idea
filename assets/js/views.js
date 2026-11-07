@@ -55,13 +55,13 @@
     const done = !!m.winner;
     const row = (i) => {
       const cls = done ? (m.winner === i + 1 ? 'won' : 'lost') : '';
-      return html`<div class="mc-row ${cls}">${m.teams[i] ? html`<span class="team-link">${teamBadge(m.teams[i])}<span class="tn">${team(m.teams[i]).name}</span></span>` : html`<span class="team-link">${teamBadge(null)}<span class="tn muted">TBD</span></span>`}<span class="mc-score">${done || m.games.length ? m.score[i] : '–'}</span></div>`;
+      return html`<div class="mc-row ${cls}">${m.teams[i] ? html`<span class="team-link">${teamBadge(m.teams[i])}<span class="tn">${team(m.teams[i]).name}</span></span>` : html`<span class="team-link">${teamBadge(null)}<span class="tn muted">TBD</span></span>`}<span class="mc-score">${done || m.games.length || m.live ? m.score[i] : '–'}</span></div>`;
     };
     const mvp = mvpView(season, m);
-    return html`<a class="match-card" href="${href(sid, 'match', m.id)}" aria-label="${(m.teams[0] ? team(m.teams[0]).name : 'TBD') + ' melawan ' + (m.teams[1] ? team(m.teams[1]).name : 'TBD')}">
+    return html`<a class="match-card${m.live ? ' is-live' : ''}" href="${href(sid, 'match', m.id)}" aria-label="${(m.teams[0] ? team(m.teams[0]).name : 'TBD') + ' melawan ' + (m.teams[1] ? team(m.teams[1]).name : 'TBD')}">
       <div class="mc-top"><span>${opts.showLabel ? stageName(m) : 'Bo' + m.bestOf}</span><span class="nowrap">${fmt.date(m.date, { day: 'numeric', month: 'short' })} · ${fmt.time(m.date)}</span></div>
       ${row(0)}${row(1)}
-      <div class="mc-foot"><span>${done ? html`MVP: <b>${mvp ? mvp.name : '—'}</b>` : html`<span class="pill pill-accent">Akan datang</span>`}</span><span>${m.games.length ? m.games.length + ' game' : ''}</span></div>
+      <div class="mc-foot"><span>${m.live ? html`<span class="pill pill-live">Live</span>` : done ? html`MVP: <b>${mvp ? mvp.name : '—'}</b>` : html`<span class="pill pill-accent">Akan datang</span>`}</span><span>${m.games.length ? m.games.length + ' game' : m.live ? 'Game ' + (m.score[0] + m.score[1] + 1) : ''}</span></div>
     </a>`;
   }
 
@@ -120,8 +120,8 @@
       const gf = season.playoffs.matches.find((m) => m.slot === 'R4M1');
       feature = html`<a class="feature card" href="${href(sid, 'match', next.id)}" style="text-decoration:none">
         <span class="vs-logos" aria-hidden="true">${teamBadge(next.teams[0], 'lg')}<b>VS</b>${teamBadge(next.teams[1], 'lg')}</span>
-        <div><div class="label">Pertandingan berikutnya · ${stageName(next)}</div>
-          <h3>${next.teams[0] ? team(next.teams[0]).name : 'TBD'} vs ${next.teams[1] ? team(next.teams[1]).name : 'TBD'}</h3>
+        <div><div class="label">${next.live ? html`<span class="pill pill-live">Live</span> ` : 'Pertandingan berikutnya · '}${stageName(next)}</div>
+          <h3>${next.teams[0] ? team(next.teams[0]).name : 'TBD'} ${next.live ? html`<span class="feature-score">${next.score[0]}–${next.score[1]}</span>` : 'vs'} ${next.teams[1] ? team(next.teams[1]).name : 'TBD'}</h3>
           <p class="muted">${fmt.dayDate(next.date)} · ${fmt.time(next.date)}${gf && gf !== next ? html` · Grand Final ${fmt.date(gf.date, { day: 'numeric', month: 'long' })}: <b>${gf.teams.map((x) => (x ? team(x).short : 'TBD')).join(' vs ')}</b>` : ''}</p></div>
         <span class="btn btn-sm">Detail match →</span></a>`;
     }
@@ -254,9 +254,9 @@
     const row = (i) => {
       const t = m.teams[i];
       const cls = !t ? 'tbd' : done ? (m.winner === i + 1 ? 'won' : 'lost') : '';
-      return html`<div class="b-team ${cls}">${teamBadge(t, 'sm')}<span class="tn">${t ? team(t).name : 'TBD'}</span><span class="sc">${m.games.length || done ? m.score[i] : ''}</span></div>`;
+      return html`<div class="b-team ${cls}">${teamBadge(t, 'sm')}<span class="tn">${t ? team(t).name : 'TBD'}</span><span class="sc">${m.games.length || done || m.live ? m.score[i] : ''}</span></div>`;
     };
-    return html`<a class="b-match ${final ? 'final' : ''}" href="${href(sid, 'match', m.id)}"><div class="bm-head"><span>Bo${m.bestOf}</span><span>${fmt.date(m.date, { day: 'numeric', month: 'short' })} · ${fmt.time(m.date)}</span></div>${row(0)}${row(1)}</a>`;
+    return html`<a class="b-match ${final ? 'final' : ''}${m.live ? ' is-live' : ''}" href="${href(sid, 'match', m.id)}"><div class="bm-head"><span>${m.live ? html`<span class="pill pill-live">Live</span>` : 'Bo' + m.bestOf}</span><span>${fmt.date(m.date, { day: 'numeric', month: 'short' })} · ${fmt.time(m.date)}</span></div>${row(0)}${row(1)}</a>`;
   }
 
   function placementList(sid, season, opts = {}) {
@@ -357,6 +357,22 @@
     </div>`;
   }
 
+  /** Statistik pemain per game dari situs resmi MPL ID: hero, KDA, damage, gold. */
+  function officialStats(sid, m, og) {
+    if (!og || !og.players || !og.players.some((p) => p.length)) return '';
+    const k = (n) => (n == null ? '—' : fmt.int(n));
+    const side = (t) => html`<div class="ps-team ${og.winner === t + 1 ? 'won' : ''}">
+      <div class="ps-head">${teamBadge(m.teams[t], 'sm')}<b>${m.teams[t] ? team(m.teams[t]).short : 'TBD'}</b>${og.kills && og.kills[t] != null ? html`<span class="ps-kills">${og.kills[t]} kill</span>` : ''}</div>
+      <table class="ps-table"><thead><tr><th>Pemain</th><th class="r">K/D/A</th><th class="r">Gold</th><th class="r hide-sm">Damage</th></tr></thead><tbody>
+      ${(og.players[t] || []).map((p) => {
+        const hid = U.heroIdByName(p.hero);
+        return html`<tr><td><span class="ps-player">${hid ? heroChip(sid, hid, { size: 'sm', noName: true }) : ''}<span><b>${p.name}</b><small>${hid ? hero(hid).name : p.hero}</small></span></span></td>
+          <td class="r num">${p.kda ? p.kda.join('/') : '—'}</td><td class="r num">${k(p.gold)}</td><td class="r num hide-sm">${k(p.dmg)}</td></tr>`;
+      })}
+      </tbody></table></div>`;
+    return html`<div class="pstats"><div class="ps-title">Statistik pemain <span class="muted">· situs resmi MPL ID</span></div><div class="ps-grid">${side(0)}${side(1)}</div></div>`;
+  }
+
   function match(sid, season, id) {
     const m = S.findMatch(season, id);
     if (!m) return notFound(sid, 'Match tidak ditemukan.');
@@ -372,9 +388,10 @@
       <a class="back" href="${back}">← ${m.phase === 'regular' ? 'Week ' + m.week : 'Playoff'}</a>
       <section class="card match-hero">
         ${side(0)}
-        <div class="mh-score">${m.games.length ? html`<span>${m.score[0]}</span><span class="dash">–</span><span>${m.score[1]}</span>` : html`<span class="dash">VS</span>`}</div>
+        <div class="mh-score${m.live ? ' is-live' : ''}">${m.games.length || m.live || m.winner ? html`<span>${m.score[0]}</span><span class="dash">–</span><span>${m.score[1]}</span>` : html`<span class="dash">VS</span>`}</div>
         ${side(1)}
         <div class="mh-meta">
+          ${m.live ? html`<span class="pill pill-live">Live</span>` : ''}
           <span><b>${stageName(m)}</b></span>
           <span>${fmt.dayDate(m.date)} · ${fmt.time(m.date)}</span>
           <span>Best of ${m.bestOf}</span>
@@ -383,7 +400,8 @@
         </div>
       </section>
       ${subs.length ? html`<p class="notice" style="margin-top:14px">Pergantian pemain: ${subs.map((s, i) => html`${i ? '; ' : ''}<b>${team(s.team).short}</b> ${s.in} masuk menggantikan ${s.out}${s.games ? ` (game ${s.games.join(', ')})` : ''}`)}</p>` : ''}
-      ${m.games.length ? '' : html`<p class="notice" style="margin-top:16px">Match ini belum dimainkan. Draft hero akan muncul setelah data diperbarui.</p>`}
+      ${m.live ? html`<div class="notice live-notice" style="margin-top:16px"><span>Sedang berlangsung, game ke-${m.score[0] + m.score[1] + 1}. Skor seri diperbarui otomatis dari situs resmi MPL ID; statistik tiap game muncul setelah match selesai.</span>${m.official && m.official.watch ? html`<a class="btn btn-sm" href="${m.official.watch}" target="_blank" rel="noopener">${ICON.play}Tonton siaran</a>` : ''}</div>`
+        : m.games.length || (m.official && m.official.games.length) ? '' : html`<p class="notice" style="margin-top:16px">Match ini belum dimainkan. Draft hero akan muncul setelah data diperbarui.</p>`}
       ${m.games.map(
         (g) => html`<article class="card game">
           <header class="game-head">
@@ -399,6 +417,20 @@
           <div class="bans-grid">
             ${[0, 1].map((t) => html`<div class="bans"><span class="bl">Ban ${m.teams[t] ? team(m.teams[t]).short : ''}</span>${g.bans[t].map((h, k) => heroChip(sid, h, { size: 'sm', banned: true, k: k * 2 + t }))}</div>`)}
           </div>
+          ${officialStats(sid, m, m.official && m.official.games.find((og) => og.n === g.n))}
+        </article>`
+      )}
+      ${(m.official ? m.official.games : []).filter((og) => og.n > m.games.length).map(
+        (og) => html`<article class="card game">
+          <header class="game-head">
+            <h3>Game ${og.n}</h3>
+            <div class="gm">
+              <span>Pemenang: <b>${og.winner && m.teams[og.winner - 1] ? team(m.teams[og.winner - 1]).name : '—'}</b></span>
+              ${og.duration ? html`<span class="gm-dur">${ICON.clock}${og.duration}</span>` : ''}
+              <span class="muted">Draft & ban menyusul dari Liquipedia</span>
+            </div>
+          </header>
+          ${officialStats(sid, m, og)}
         </article>`
       )}
       ${m.games.length ? html`<p class="muted" style="font-size:12.5px;margin-top:12px">Urutan hero mengikuti posisi EXP · Jungle · Mid · Gold · Roam sesuai input draft di Liquipedia.</p>` : ''}`,

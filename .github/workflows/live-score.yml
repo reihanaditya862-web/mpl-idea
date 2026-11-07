@@ -1,0 +1,43 @@
+# Skor live MPL ID.
+#
+# Setiap 10 menit pada jam pertandingan (12:00–23:59 WIB), job ini menjalankan
+# scripts/live_update.py selama ±9 menit. Script memeriksa situs resmi MPL ID
+# setiap 45 detik dan commit data/live.json + data/live.js hanya ketika skor
+# berubah. Pada hari tanpa pertandingan, script langsung berhenti setelah satu
+# kali cek.
+#
+# Website (GitHub Pages) membaca data/live.json ulang setiap 30 detik, jadi skor
+# di website tertinggal kira-kira 1–2 menit dari situs resmi, ditambah waktu
+# deploy GitHub Pages.
+name: Skor live MPL ID
+
+on:
+  schedule:
+    - cron: "*/10 5-16 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: live-score
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Atur identitas commit
+        run: |
+          git config user.name "mpl-live-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Perbarui skor live (±9 menit)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MPL_PAGES_WORKFLOW: pages.yml
+        run: python3 scripts/live_update.py --watch 45 --max-minutes 9 --idle-exit --git

@@ -105,6 +105,15 @@
     return heroIndex[id] || (id ? { id, name: id, lane: 'flex' } : null);
   }
   const team = (id) => (MPL.teams && MPL.teams[id]) || null;
+  let heroByName = null;
+  /** Cari id hero dari nama tampilan (mis. "Yi Sun-shin", "cici"). */
+  function heroIdByName(name) {
+    if (!heroByName) {
+      heroByName = {};
+      (MPL.heroes || []).forEach((h) => (heroByName[String(h.name).toLowerCase().replace(/[^a-z0-9]/g, '')] = h.id));
+    }
+    return heroByName[String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '')] || null;
+  }
 
   function initials(name) {
     const parts = name.replace(/[^A-Za-z0-9' -]/g, ' ').split(/[\s-]+/).filter(Boolean);
@@ -214,5 +223,5 @@
     return html`<span class="bar ${cls}"><i style="width:${w}%"></i></span>`;
   }
 
-  MPL.util = { html, esc, fmt, toSec, LANES, ROLE_ORDER, STAFF_ROLES, AWARD_NAMES, hero, team, initials, countryTag, COUNTRY, href, photoOf, extraStaff, personAvatar, nameKey, teamBadge, teamLink, heroChip, heroAva, bar };
+  MPL.util = { html, esc, fmt, toSec, LANES, ROLE_ORDER, STAFF_ROLES, AWARD_NAMES, hero, heroIdByName, team, initials, countryTag, COUNTRY, href, photoOf, extraStaff, personAvatar, nameKey, teamBadge, teamLink, heroChip, heroAva, bar };
 })();
