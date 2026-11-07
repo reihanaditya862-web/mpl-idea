@@ -48,7 +48,7 @@
   function mvpView(season, m) {
     if (!m.mvp) return null;
     const p = S.resolvePlayer(season, m.mvp, m.teams);
-    return { name: p.name, team: p.team };
+    return { name: p.name, team: p.team, link: p.link };
   }
 
   function matchCard(sid, season, m, opts = {}) {
@@ -107,7 +107,7 @@
     } else if (next) {
       const gf = season.playoffs.matches.find((m) => m.slot === 'R4M1');
       feature = html`<a class="feature card" href="${href(sid, 'match', next.id)}" style="text-decoration:none">
-        <span class="team-badge xl tbd" aria-hidden="true">NEXT</span>
+        <span class="vs-logos" aria-hidden="true">${teamBadge(next.teams[0], 'lg')}<b>VS</b>${teamBadge(next.teams[1], 'lg')}</span>
         <div><div class="label">Pertandingan berikutnya · ${stageName(next)}</div>
           <h3>${next.teams[0] ? team(next.teams[0]).name : 'TBD'} vs ${next.teams[1] ? team(next.teams[1]).name : 'TBD'}</h3>
           <p class="muted">${fmt.dayDate(next.date)} · ${fmt.time(next.date)}${gf && gf !== next ? html` · Grand Final ${fmt.date(gf.date, { day: 'numeric', month: 'long' })}: <b>${gf.teams.map((x) => (x ? team(x).short : 'TBD')).join(' vs ')}</b>` : ''}</p></div>
@@ -173,7 +173,7 @@
         ${sectionHead('Penghargaan musim', 'Diumumkan oleh MPL Indonesia')}
         <div class="grid grid-3">${awards.map((a) => html`<div class="card award"><div class="an">${U.AWARD_NAMES[a.award] || a.award}</div><div class="aw">${a.winners.map((w) =>
           w.player
-            ? html`<span class="who">${w.team ? teamBadge(w.team, 'sm') : ''}${w.player}</span>`
+            ? html`<span class="who">${U.personAvatar({ id: w.player, link: w.link }, w.team, 'xs')}${w.player}${w.team ? html`<span class="muted" style="font-weight:500;font-size:12px">${team(w.team).short}</span>` : ''}</span>`
             : html`<span class="who">${teamLink(sid, w.team, { size: 'sm' })}</span>`
         )}</div></div>`)}</div>
       </section>` : ''}
@@ -362,7 +362,7 @@
           <span><b>${stageName(m)}</b></span>
           <span>${fmt.dayDate(m.date)} · ${fmt.time(m.date)}</span>
           <span>Best of ${m.bestOf}</span>
-          ${mvp ? html`<span>MVP: <b>${mvp.name}</b>${mvp.team ? html` (${team(mvp.team).short})` : ''}</span>` : ''}
+          ${mvp ? html`<span class="mvp-line">${U.personAvatar({ id: mvp.name, link: mvp.link }, mvp.team, 'xs')}MVP: <b>${mvp.name}</b>${mvp.team ? html` (${team(mvp.team).short})` : ''}</span>` : ''}
           ${m.casters.length ? html`<span>Caster: ${m.casters.join(', ')}</span>` : ''}
         </div>
       </section>
@@ -402,27 +402,36 @@
         <div class="team-cards">${rows.map((r) => {
           const t = team(r.team);
           const roster = season.rosters[r.team] || { players: [], staff: [] };
-          const hc = roster.staff.find((p) => p.staffRole === 'head coach' && p.status !== 'former');
+          const staffAll = roster.staff.concat(U.extraStaff(season, r.team));
+          const hc = staffAll.find((p) => p.staffRole === 'head coach' && p.status !== 'former');
+          const starters = roster.players.filter((p) => p.status === 'main').sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role));
           return html`<a class="card team-card" href="${href(sid, 'team', r.team)}" style="--tc:${t.color}">
             <div class="tc-top">${teamBadge(r.team, 'lg')}<div><h3>${t.name}</h3><div class="muted" style="font-size:13px">Peringkat #${r.rank} regular season</div></div></div>
+            <ul class="tc-squad" aria-label="Pemain inti ${t.name}">${starters.map((p) => html`<li title="${p.id} · ${LANES[p.role] ? LANES[p.role].name : p.role}">${U.personAvatar(p, r.team)}<span>${p.id}</span></li>`)}</ul>
             <dl class="tc-stats"><div><dt>Match</dt><dd>${r.w}–${r.l}</dd></div><div><dt>Game</dt><dd>${r.gw}–${r.gl}</dd></div><div><dt>Playoff</dt><dd>${placeLabel(pl[r.team], season).replace('Peringkat ', '#').replace('Tidak lolos playoff', '—')}</dd></div></dl>
-            <div class="tc-coach">Head Coach: <b>${hc ? hc.id : '—'}</b> · ${roster.players.filter((p) => p.status === 'main').length} starter, ${roster.players.filter((p) => p.status === 'sub').length} cadangan</div>
+            <div class="tc-coach">${hc ? U.personAvatar(hc, r.team, 'xs') : ''}<span>Head Coach: <b>${hc ? hc.id : '—'}</b> · ${roster.players.filter((p) => p.status === 'sub').length} cadangan</span></div>
           </a>`;
         })}</div>
       </section>`,
     };
   }
 
-  function personCard(p, staff) {
+  function personCard(p, staff, teamId) {
     const roleLabel = staff ? U.STAFF_ROLES[p.staffRole] || p.staffRole : LANES[p.role] ? LANES[p.role].name : p.role;
     const aka = (p.link || '').replace(/\s*\(.*\)$/, '');
-    const cls = ['person', p.status === 'sub' ? 'sub' : '', p.status === 'former' ? 'former' : '', !staff ? 'lane-' + (p.role || 'flex') : ''].join(' ');
-    return html`<div class="${cls}">
+    const t = team(teamId);
+    const photo = U.photoOf(p);
+    const cls = ['person', p.status === 'sub' ? 'sub' : '', p.status === 'former' ? 'former' : '', !staff ? 'lane-' + (p.role || 'flex') : 'staff'].join(' ');
+    return html`<div class="${cls}" style="--tc:${t ? t.color : 'var(--surface-3)'}">
+      <div class="person-photo">${photo ? html`<img src="${photo}" alt="Foto ${p.id}" loading="lazy" decoding="async">` : html`<span class="ph-initials" aria-hidden="true">${U.initials(p.id)}</span>`}</div>
+      <div class="person-body">
       <span class="role" style="${staff ? 'color:var(--accent-text)' : 'color:var(--lc)'}">${roleLabel}</span>
       <span class="ign">${p.flag ? html`<span class="flag" title="${U.COUNTRY[p.flag] || p.flag.toUpperCase()}">${U.flagEmoji(p.flag)}</span>` : ''}${p.id}${p.captain ? html`<span class="cap">CAPTAIN</span>` : ''}${p.viceCaptain ? html`<span class="cap" style="background:var(--surface-3);color:var(--text-2)">VICE</span>` : ''}</span>
       ${aka && aka.toLowerCase() !== p.id.toLowerCase() ? html`<span class="aka">dikenal juga: ${aka}</span>` : ''}
       ${p.status === 'sub' ? html`<span class="aka">Cadangan${p.played === false ? ' · belum bermain' : ''}</span>` : ''}
       ${p.status === 'former' ? html`<span class="aka">Keluar di tengah musim</span>` : ''}
+      ${p.source ? html`<span class="aka">Data dari situs resmi MPL ID</span>` : ''}
+      </div>
     </div>`;
   }
 
@@ -438,7 +447,7 @@
     const starters = roster.players.filter((p) => p.status === 'main').sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role));
     const subs = roster.players.filter((p) => p.status === 'sub');
     const former = roster.players.filter((p) => p.status === 'former').concat(roster.staff.filter((p) => p.status === 'former'));
-    const staff = roster.staff.filter((p) => p.status !== 'former');
+    const staff = roster.staff.filter((p) => p.status !== 'former').concat(U.extraStaff(season, id));
     const staffOrder = ['head coach', 'coach', 'assistant coach', 'analyst', 'manager'];
     staff.sort((a, b) => staffOrder.indexOf(a.staffRole) - staffOrder.indexOf(b.staffRole));
     const hasAnalyst = staff.some((p) => p.staffRole === 'analyst');
@@ -467,15 +476,15 @@
 
       <section class="section">
         ${sectionHead('Pemain inti', 'Lima starter sesuai posisi')}
-        <div class="people">${starters.map((p) => personCard(p, false))}</div>
-        ${subs.length ? html`<h3 class="day-title">Cadangan</h3><div class="people">${subs.map((p) => personCard(p, false))}</div>` : ''}
+        <div class="people">${starters.map((p) => personCard(p, false, id))}</div>
+        ${subs.length ? html`<h3 class="day-title">Cadangan</h3><div class="people">${subs.map((p) => personCard(p, false, id))}</div>` : ''}
       </section>
 
       <section class="section">
         ${sectionHead('Coach & analyst', 'Jajaran staf pelatih')}
-        <div class="people">${staff.map((p) => personCard(p, true))}</div>
-        ${hasAnalyst ? '' : html`<p class="muted" style="font-size:13px;margin-top:10px">Analyst tim ini tidak tercantum di sumber data (Liquipedia).</p>`}
-        ${former.length ? html`<h3 class="day-title">Keluar di tengah musim</h3><div class="people">${former.map((p) => personCard(p, !!p.staffRole))}</div>` : ''}
+        <div class="people">${staff.map((p) => personCard(p, true, id))}</div>
+        ${hasAnalyst ? '' : html`<p class="muted" style="font-size:13px;margin-top:10px">Analyst tim ini tidak tercantum di Liquipedia maupun situs resmi MPL ID.</p>`}
+        ${former.length ? html`<h3 class="day-title">Keluar di tengah musim</h3><div class="people">${former.map((p) => personCard(p, !!p.staffRole, id))}</div>` : ''}
       </section>
 
       <section class="section">

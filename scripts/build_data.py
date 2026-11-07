@@ -17,10 +17,13 @@ disimpan di .cache/liquipedia supaya tidak membebani server Liquipedia
 from __future__ import annotations
 
 import argparse
+import gzip
+import hashlib
 import json
 import re
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -30,8 +33,11 @@ ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / ".cache" / "liquipedia"
 OUT = ROOT / "data"
 BASE = "https://liquipedia.net/mobilelegends"
-UA = "mpl-idea-static-site/1.0 (educational fan project)"
-DELAY = 3.0
+UA = "mpl-idea-static-site/1.0 (https://github.com/reihanaditya862-web/mpl-idea)"
+DELAY = 4.0
+IMG_DELAY = 1.5
+IMG_DIR = ROOT / "assets" / "img"
+COMMONS_IMAGES = "https://liquipedia.net/commons/images"
 _last_request = 0.0
 
 # --------------------------------------------------------------------------
@@ -85,27 +91,70 @@ MONTHS = {m: i for i, m in enumerate(
 # --------------------------------------------------------------------------
 # Unduh / cache
 # --------------------------------------------------------------------------
-def _get(url: str) -> bytes:
+def _get(url: str, soft: bool = False, delay: float | None = None) -> bytes | None:
+    """GET dengan jeda antar-request dan backoff saat Liquipedia membatasi (429).
+
+    soft=True: kembalikan None untuk 404/4xx/5xx lain (mis. halaman tidak ada).
+    """
     global _last_request
-    wait = DELAY - (time.time() - _last_request)
-    if wait > 0:
-        time.sleep(wait)
-    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Encoding": "identity"})
-    with urllib.request.urlopen(req, timeout=60) as r:
-        data = r.read()
-    _last_request = time.time()
-    return data
+    for attempt in range(7):
+        wait = (DELAY if delay is None else delay) - (time.time() - _last_request)
+        if wait > 0:
+            time.sleep(wait)
+        req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Encoding": "gzip"})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                data = r.read()
+                if r.headers.get("Content-Encoding") == "gzip":
+                    data = gzip.decompress(data)
+            _last_request = time.time()
+            if b"<title>Rate Limited - Liquipedia</title>" in data[:600]:
+                raise urllib.error.HTTPError(url, 429, "Rate Limited", None, None)
+            return data
+        except urllib.error.HTTPError as e:
+            _last_request = time.time()
+            if e.code == 429:
+                pause = min(900, 90 * 2 ** attempt)
+                print(f"  dibatasi Liquipedia (429), tunggu {pause} detik…", file=sys.stderr)
+                time.sleep(pause)
+                continue
+            if soft:
+                return None
+            raise
+    raise SystemExit("Liquipedia terus menolak request (rate limit). Coba lagi beberapa saat lagi.")
 
 
-def fetch_raw(title: str, refresh: bool) -> str:
-    path = CACHE / (re.sub(r"[^A-Za-z0-9]+", "_", title).strip("_") + ".txt")
-    if path.exists() and not refresh:
-        return path.read_text(encoding="utf-8")
-    url = f"{BASE}/{urllib.parse.quote(title.replace(' ', '_'))}?action=raw"
-    print(f"  unduh {url}", file=sys.stderr)
-    text = _get(url).decode("utf-8")
-    CACHE.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+def _cache_path(title: str, suffix: str) -> Path:
+    return CACHE / (re.sub(r"[^A-Za-z0-9]+", "_", title).strip("_") + suffix)
+
+
+def fetch_raw(title: str, refresh: bool, wiki: str = "mobilelegends", missing_ok: bool = False) -> str | None:
+    """Wikitext mentah sebuah halaman. Mengikuti #REDIRECT satu kali."""
+    prefix = "" if wiki == "mobilelegends" else wiki + "__"
+    path = _cache_path(prefix + title, ".txt")
+    miss = _cache_path(prefix + title, ".missing")
+    if not refresh:
+        if path.exists():
+            text = path.read_text(encoding="utf-8")
+        elif miss.exists() and missing_ok:
+            return None
+        else:
+            text = None
+    else:
+        text = None
+    if text is None:
+        url = f"https://liquipedia.net/{wiki}/{urllib.parse.quote(title.replace(' ', '_'))}?action=raw"
+        print(f"  unduh {url}", file=sys.stderr)
+        data = _get(url, soft=missing_ok)
+        CACHE.mkdir(parents=True, exist_ok=True)
+        if data is None:
+            miss.write_text("", encoding="utf-8")
+            return None
+        text = data.decode("utf-8")
+        path.write_text(text, encoding="utf-8")
+    m = re.match(r"\s*#REDIRECT\s*\[\[([^\]|#]+)", text, re.I)
+    if m and m.group(1).strip() != title:
+        return fetch_raw(m.group(1).strip(), refresh, wiki, missing_ok)
     return text
 
 

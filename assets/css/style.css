@@ -257,6 +257,23 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .team-badge.xl { width: 92px; height: 92px; border-radius: 22px; font-size: 24px; }
 .team-badge.sm { width: 26px; height: 26px; border-radius: 8px; font-size: 8.5px; }
 .team-badge.tbd { --tc: var(--surface-3); --ti: var(--muted); }
+.team-badge.logo { background: transparent; box-shadow: none; padding: 0; }
+.team-badge.logo img { width: 100%; height: 100%; object-fit: contain; }
+.team-badge.logo.on-color { background: var(--tc); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12); }
+.team-badge.logo.on-color img { width: 78%; height: 78%; }
+
+/* ---------- Foto orang ---------- */
+.p-ava {
+  --tc: var(--surface-3);
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; overflow: hidden; display: inline-grid; place-items: center;
+  background: radial-gradient(circle at 50% 120%, color-mix(in srgb, var(--tc) 70%, transparent), var(--surface-3) 75%);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px color-mix(in srgb, var(--tc) 60%, transparent);
+  font: 800 11px/1 var(--font-display); color: var(--text-2);
+}
+.p-ava img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 8%; transform: scale(1.35); transform-origin: 50% 0; }
+.p-ava.xs { width: 26px; height: 26px; font-size: 9px; }
+.p-ava.lg { width: 56px; height: 56px; font-size: 15px; }
+
 .team-link { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; min-width: 0; }
 .team-link .tn { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .team-link:hover .tn { color: var(--accent-text); }
@@ -327,6 +344,8 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
   border: 1px solid var(--border);
 }
 .feature h3 { font-size: 22px; }
+.vs-logos { display: flex; align-items: center; gap: 8px; }
+.vs-logos b { font: 800 13px var(--font-display); color: var(--muted); }
 .feature .label { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-text); }
 @media (max-width: 600px) { .feature { grid-template-columns: auto 1fr; } .feature > :last-child { grid-column: 1 / -1; } }
 
@@ -483,7 +502,12 @@ table.data td.c, table.data th.c { text-align: center; }
 .team-card .tc-stats div { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; }
 .team-card .tc-stats dt { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
 .team-card .tc-stats dd { margin: 2px 0 0; font: 700 15px var(--font-display); }
-.team-card .tc-coach { margin-top: 12px; font-size: 13px; color: var(--text-2); }
+.team-card .tc-coach { margin-top: 12px; font-size: 13px; color: var(--text-2); display: flex; align-items: center; gap: 8px; }
+.tc-squad { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.tc-squad li { display: grid; justify-items: center; gap: 5px; min-width: 0; }
+.tc-squad .p-ava { width: 44px; height: 44px; }
+.tc-squad span:last-child { font-size: 11.5px; font-weight: 600; color: var(--text-2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mvp-line { display: inline-flex; align-items: center; gap: 6px; }
 
 .team-head {
   display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center; padding: 24px;
@@ -492,12 +516,24 @@ table.data td.c, table.data th.c { text-align: center; }
 .team-head .facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 @media (max-width: 520px) { .team-head { grid-template-columns: 1fr; } }
 
-.people { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); }
-.person { padding: 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); display: grid; gap: 4px; position: relative; }
+.people { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); }
+@media (max-width: 520px) { .people { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .person .ign { font-size: 15px; } .person-body { padding: 10px 11px 12px; } }
+.person { border-radius: 14px; background: var(--surface); border: 1px solid var(--border); display: grid; grid-template-rows: auto 1fr; position: relative; overflow: hidden; }
+.person-photo {
+  position: relative; aspect-ratio: 1 / 1; max-width: 100%; display: grid; place-items: end center; overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 50% 100%, color-mix(in srgb, var(--tc) 55%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--surface-2), color-mix(in srgb, var(--tc) 18%, var(--surface-2)));
+  border-bottom: 1px solid var(--border);
+}
+.person-photo img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
+.person-photo .ph-initials { align-self: center; font: 800 34px/1 var(--font-display); color: color-mix(in srgb, var(--text) 45%, transparent); letter-spacing: .04em; }
+.person-body { padding: 12px 14px 14px; display: grid; gap: 4px; align-content: start; min-width: 0; }
 .person .ign { font: 700 17px var(--font-display); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .person .aka { font-size: 12.5px; color: var(--muted); }
 .person .role { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .person.sub { background: var(--surface-2); }
+.person.sub .person-photo { filter: saturate(.85); }
 .person.former { opacity: .7; border-style: dashed; }
 .cap { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 5px; background: var(--accent); color: var(--accent-ink); letter-spacing: .05em; }
 .flag { font-size: 14px; line-height: 1; }

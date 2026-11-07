@@ -135,10 +135,44 @@
     return '#' + t.join('-');
   }
 
+  // -------------------------------------------------------------- Media
+  // Logo & foto dari data/media.js (scripts/fetch_media.py). Semua opsional:
+  // tanpa file media, situs kembali memakai badge warna dan inisial.
+  const media = () => MPL.media || { teams: {}, photos: {}, extraStaff: {} };
+  const nameKey = (s) =>
+    String(s || '').toLowerCase().replace(/^coach\s+/, '').replace(/\s*\(.*\)$/, '').replace(/[^a-z0-9]/g, '').replace(/(.)\1+/g, '$1');
+
+  function photoOf(person) {
+    if (!person) return null;
+    if (person.photo) return person.photo;
+    const ph = media().photos || {};
+    return ph[nameKey(person.link)] || ph[nameKey(person.id || person.name)] || null;
+  }
+
+  /** Staff resmi (id-mpl.com) yang tidak tercantum di Liquipedia, hanya untuk musim yang sama. */
+  function extraStaff(season, teamId) {
+    const m = media();
+    if (!m.season || m.season !== season.season) return [];
+    return ((m.extraStaff || {})[teamId] || []).map((p) => ({ ...p, link: p.id, status: 'main' }));
+  }
+
+  function personAvatar(person, teamId, size = '') {
+    const src = photoOf(person);
+    const t = team(teamId);
+    const style = t ? `--tc:${t.color}` : '';
+    const name = person ? person.id || person.name : '';
+    if (src) return html`<span class="p-ava ${size}" style="${style}"><img src="${src}" alt="" loading="lazy" decoding="async"></span>`;
+    return html`<span class="p-ava ${size} no-photo" style="${style}" aria-hidden="true">${initials(name || '?')}</span>`;
+  }
+
   // --------------------------------------------------------- Components
   function teamBadge(id, size = '') {
     const t = team(id);
     if (!t) return html`<span class="team-badge tbd ${size}" aria-hidden="true">TBD</span>`;
+    const m = media().teams[id];
+    if (m && m.logo) {
+      return html`<span class="team-badge logo ${size}${m.tone === 'dark' ? ' on-color' : ''}" style="--tc:${t.color};--ti:${t.ink}" aria-hidden="true"><img src="${m.logo}" alt="" loading="lazy" decoding="async"></span>`;
+    }
     return html`<span class="team-badge ${size}" style="--tc:${t.color};--ti:${t.ink}" aria-hidden="true">${t.short}</span>`;
   }
 
@@ -169,5 +203,5 @@
     return html`<span class="bar ${cls}"><i style="width:${w}%"></i></span>`;
   }
 
-  MPL.util = { html, esc, fmt, toSec, LANES, ROLE_ORDER, STAFF_ROLES, AWARD_NAMES, hero, team, initials, flagEmoji, COUNTRY, href, teamBadge, teamLink, heroChip, heroAva, bar };
+  MPL.util = { html, esc, fmt, toSec, LANES, ROLE_ORDER, STAFF_ROLES, AWARD_NAMES, hero, team, initials, flagEmoji, COUNTRY, href, photoOf, extraStaff, personAvatar, nameKey, teamBadge, teamLink, heroChip, heroAva, bar };
 })();
