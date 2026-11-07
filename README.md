@@ -16,7 +16,7 @@ Saat ini tersedia **Season 18** (Agustus–November 2026, playoff masih berjalan
 | **Hero** | Tabel pick, ban, presence, dan win rate. Bisa diurutkan, difilter per fase dan lane, serta dicari. Halaman detail hero berisi tim yang memakai, posisi, dan daftar game. |
 | **Detail match** | Skor, MVP, caster, pergantian pemain, dan draft lengkap setiap game: 5 pick per tim sesuai posisi, 5 ban per tim, sisi blue/red, durasi, map, serta link VOD. |
 
-Fitur lain: pilihan musim, tema terang/gelap, dan tampilan responsif untuk HP.
+Fitur lain: ikon resmi setiap hero, pilihan musim, tema terang/gelap, tampilan responsif untuk HP, dan animasi ringan (bagian halaman muncul berurutan, angka papan skor berhitung, batang statistik tumbuh, serta draft hero "lock-in" mengikuti urutan pick MLBB). Animasi otomatis mati kalau perangkat memakai pengaturan kurangi gerakan.
 
 ## Menjalankan
 
@@ -52,13 +52,13 @@ python3 scripts/build_data.py --seasons 16 17 18 --refresh
 - Kalau muncul tim atau alias hero baru, tambahkan ke `TEAM_ALIASES` atau `HERO_ALIASES` di `scripts/build_data.py`.
 - Liquipedia membatasi request dengan ketat. Script menunggu otomatis saat dibatasi (HTTP 429), jadi biarkan berjalan.
 
-**2. Logo tim serta foto pemain & staf** dari [situs resmi MPL Indonesia](https://id-mpl.com/teams):
+**2. Logo tim, foto pemain & staf, serta ikon hero** dari [situs resmi MPL Indonesia](https://id-mpl.com/teams):
 
 ```bash
 python3 scripts/fetch_media.py
 ```
 
-- Hasilnya `assets/img/teams/`, `assets/img/people/<tim>/`, dan `data/media.js`. Kalau [Pillow](https://pypi.org/project/pillow/) terpasang, gambar dikecilkan ke WebP (sekitar 15 KB per foto).
+- Hasilnya `assets/img/teams/`, `assets/img/people/<tim>/`, `assets/img/heroes/`, dan `data/media.js`. Ikon hero diambil dari halaman statistik resmi. Kalau [Pillow](https://pypi.org/project/pillow/) terpasang, gambar dikecilkan ke WebP (sekitar 15 KB per foto).
 - Situs resmi hanya menampilkan roster musim yang sedang berjalan. Foto dipasangkan lewat identitas pemain di Liquipedia, jadi pemain musim lalu yang masih aktif tetap mendapat foto (dengan jersey tim terbarunya). Pemain yang sudah tidak bermain di MPL ID tampil dengan inisial.
 - Staf yang tercantum di situs resmi tetapi tidak ada di Liquipedia (misalnya asisten pelatih) ikut ditampilkan untuk musim yang sama.
 - Logo yang hampir seluruhnya gelap (misalnya ONIC) otomatis diberi latar warna tim supaya terlihat di tema gelap.
@@ -83,10 +83,10 @@ scripts/fetch_media.py pengambil logo & foto dari id-mpl.com
 - Urutan pick per game mengikuti posisi **EXP · Jungle · Mid · Gold · Roam** sesuai input draft di Liquipedia. Karena itu hero pool ditampilkan per posisi tim, bukan per pemain (game yang dimainkan pemain cadangan ikut masuk ke posisi yang sama).
 - Analyst hanya tampil jika tercantum di Liquipedia. Beberapa tim tidak mencantumkannya.
 - Lane hero memakai posisi utama hero menurut Liquipedia.
-- Gambar hero tidak dipakai; hero ditampilkan dengan inisial berwarna sesuai lane.
+- Ikon hero diberi garis bawah berwarna sesuai lane utamanya. Hero tanpa ikon tampil dengan inisial.
 
 ## Lisensi & kredit
 
 Data turnamen dari [Liquipedia](https://liquipedia.net/mobilelegends) di bawah lisensi [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
-Logo tim serta foto pemain & staf dari [situs resmi MPL Indonesia](https://id-mpl.com/teams); hak ciptanya milik MPL Indonesia/Moonton dan tim masing-masing, dan dipakai di sini untuk keperluan penggemar non-komersial. Jika situs ini dipublikasikan, hapus gambar tersebut bila pemilik hak meminta.
+Logo tim, foto pemain & staf, serta ikon hero dari [situs resmi MPL Indonesia](https://id-mpl.com/teams); hak ciptanya milik MPL Indonesia/Moonton dan tim masing-masing, dan dipakai di sini untuk keperluan penggemar non-komersial. Jika situs ini dipublikasikan, hapus gambar tersebut bila pemilik hak meminta.
 Ini proyek penggemar dan tidak berafiliasi dengan Moonton, MPL Indonesia, maupun tim yang ditampilkan.

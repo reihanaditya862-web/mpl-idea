@@ -5,6 +5,7 @@ Unduh logo tim serta foto pemain & coach dari situs resmi MPL Indonesia.
 Sumber : https://id-mpl.com/teams dan https://id-mpl.com/team/<tim>
 Output : assets/img/teams/<tim>.<ext>
          assets/img/people/<tim>/<nama>.<ext>
+         assets/img/heroes/<hero>.<ext>
          data/media.js
 
 Pemakaian:
@@ -26,6 +27,7 @@ import re
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -205,6 +207,37 @@ def link_photos(media: dict) -> None:
         print("Pemain resmi tanpa pasangan di data Liquipedia:", ", ".join(unmatched), file=sys.stderr)
 
 
+HERO_ICON_SIZE = 128
+
+
+def load_js_data(name: str):
+    f = ROOT / "data" / name
+    text = f.read_text(encoding="utf-8")
+    start = min(i for i in (text.find("\n{"), text.find("\n[")) if i >= 0)
+    return json.loads(text[start + 1: text.rindex(";")])
+
+
+def fetch_hero_icons(refresh: bool) -> dict[str, str]:
+    """Ikon hero dari halaman statistik resmi (gambar di ik.imagekit.io)."""
+    page = get(f"{SITE}/statistics").decode("utf-8")
+    urls = {}
+    for m in re.finditer(r'(https://ik\.imagekit\.io/[^"?\s]+/mlbb/heroes/([^"?\s]+?)\.(?:jpg|jpeg|png|webp))', page):
+        name = html.unescape(urllib.parse.unquote(m.group(2))).replace("_", " ")
+        urls.setdefault(norm(name), html.unescape(m.group(1)))
+    icons, missing = {}, []
+    for h in load_js_data("heroes.js"):
+        url = urls.get(norm(h["name"]))
+        if not url:
+            missing.append(h["name"])
+            continue
+        path = fetch_image(f"{url}?tr=w-{HERO_ICON_SIZE},h-{HERO_ICON_SIZE}", IMG / "heroes" / h["id"], HERO_ICON_SIZE, refresh)
+        if path:
+            icons[h["id"]] = path
+    if missing:
+        print("Ikon hero tidak ditemukan:", ", ".join(missing), file=sys.stderr)
+    return icons
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--refresh", action="store_true", help="unduh ulang semua gambar")
@@ -240,6 +273,8 @@ def main() -> None:
             media["people"].append({"team": team, "name": p["name"], "role": p["role"], "photo": photo})
 
     link_photos(media)
+    print("ikon hero", file=sys.stderr)
+    media["heroes"] = fetch_hero_icons(args.refresh)
     body = json.dumps(media, ensure_ascii=False, separators=(",", ":"))
     OUT.write_text(
         "// File ini dibuat otomatis oleh scripts/fetch_media.py — jangan diedit manual.\n"

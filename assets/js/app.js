@@ -98,6 +98,7 @@
     main.innerHTML = view.body.toString();
     document.title = `${view.title} · MPL ID Hub`;
     if (view.mount) view.mount(main);
+    animate(main);
     const updated = document.getElementById('data-updated');
     if (updated) updated.textContent = season.generatedAt ? `Data diperbarui ${fmt.date(season.generatedAt, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} WIB.` : '';
     const target = view.scrollTo && document.getElementById(view.scrollTo);
@@ -107,6 +108,46 @@
     lastView = route.view;
   }
   let lastView = null;
+
+  // ---------------------------------------------------------- animasi
+  const reduceMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  const STAGGER = '.team-cards, .matches, .people, .rank-list, .placements, .role-pool, .game-list, .grid, .scoreboard, table.data tbody, .tc-squad, .b-stack';
+
+  /** Satu momen masuk per halaman: bagian lalu isi daftar muncul berurutan. */
+  function animate(root) {
+    if (reduceMotion.matches) return;
+    const mark = (el, i) => {
+      el.classList.add('anim-in');
+      el.style.setProperty('--i', i);
+      el.addEventListener('animationend', function done(e) {
+        if (e.target !== el) return;
+        el.classList.remove('anim-in');
+        el.removeEventListener('animationend', done);
+      });
+    };
+    [...root.children].forEach((el, i) => mark(el, Math.min(i, 6)));
+    root.querySelectorAll(STAGGER).forEach((list) => [...list.children].forEach((c, j) => mark(c, Math.min(j, 14))));
+    countUp(root);
+  }
+
+  /** Angka papan skor berhitung naik; teks akhir selalu nilai aslinya. */
+  function countUp(root) {
+    root.querySelectorAll('[data-count]').forEach((el) => {
+      const target = Number(el.dataset.count);
+      if (!isFinite(target) || target <= 0) return;
+      const type = el.dataset.fmt;
+      const final = el.textContent;
+      const show = (v) => (type === 'pct' ? (v / 10).toFixed(1).replace('.', ',') + '%' : type === 'dur' ? fmt.duration(v) : fmt.int(Math.round(v)));
+      const t0 = performance.now();
+      const dur = 900;
+      const tick = (t) => {
+        const p = Math.min(1, (t - t0) / dur);
+        el.textContent = p < 1 ? show(target * (1 - Math.pow(1 - p, 3))) : final;
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  }
 
   function updateChrome(route) {
     navLinks.forEach((a) => {

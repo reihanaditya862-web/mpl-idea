@@ -112,10 +112,6 @@
     return name.slice(0, 2).toUpperCase();
   }
 
-  function flagEmoji(code) {
-    if (!code || code.length !== 2) return '';
-    return String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
-  }
   const COUNTRY = { id: 'Indonesia', ph: 'Filipina', my: 'Malaysia', sg: 'Singapura', kh: 'Kamboja', mm: 'Myanmar', th: 'Thailand', vn: 'Vietnam', us: 'Amerika Serikat' };
 
   // ------------------------------------------------------------- Links
@@ -138,7 +134,7 @@
   // -------------------------------------------------------------- Media
   // Logo & foto dari data/media.js (scripts/fetch_media.py). Semua opsional:
   // tanpa file media, situs kembali memakai badge warna dan inisial.
-  const media = () => MPL.media || { teams: {}, photos: {}, extraStaff: {} };
+  const media = () => MPL.media || { teams: {}, photos: {}, extraStaff: {}, heroes: {} };
   const nameKey = (s) =>
     String(s || '').toLowerCase().replace(/^coach\s+/, '').replace(/\s*\(.*\)$/, '').replace(/[^a-z0-9]/g, '').replace(/(.)\1+/g, '$1');
 
@@ -183,19 +179,34 @@
     return html`<a class="team-link" href="${href(season, 'team', t.id)}">${teamBadge(id, opts.size)}<span class="tn">${label}</span></a>`;
   }
 
-  function heroChip(season, id, opts = {}) {
-    const h = hero(id);
-    if (!h) return html`<span class="hero-chip ${opts.size || ''} lane-flex"><span class="hero-ava" aria-hidden="true">—</span>${opts.noName ? '' : html`<span class="hn muted">Tidak ada</span>`}</span>`;
-    const cls = `hero-chip ${opts.size || ''} lane-${h.lane}${opts.banned ? ' banned' : ''}`;
-    const label = opts.noName ? html`<span class="sr-only">${h.name}</span>` : html`<span class="hn">${h.name}</span>`;
-    return html`<a class="${cls}" href="${href(season, 'hero', h.id)}" title="${h.name}${opts.banned ? ' (dibanned)' : ''}"><span class="hero-ava" aria-hidden="true">${initials(h.name)}</span>${label}</a>`;
+  /** Isi kotak ikon hero: gambar resmi bila ada, inisial bila tidak. */
+  function heroFace(h) {
+    const icon = (media().heroes || {})[h.id];
+    return icon
+      ? html`<span class="hero-ava has-icon" aria-hidden="true"><img src="${icon}" alt="" loading="lazy" decoding="async"></span>`
+      : html`<span class="hero-ava" aria-hidden="true">${initials(h.name)}</span>`;
   }
 
-  /** Avatar hero tanpa link (untuk dipakai di dalam elemen yang sudah berupa link). */
+  function heroChip(season, id, opts = {}) {
+    const h = hero(id);
+    if (!h) return html`<span class="hero-chip ${opts.size || ''} lane-flex empty-slot"><span class="hero-ava" aria-hidden="true"></span>${opts.noName ? '' : html`<span class="hn muted">Tidak ada</span>`}</span>`;
+    const cls = `hero-chip ${opts.size || ''} lane-${h.lane}${opts.banned ? ' banned' : ''}`;
+    const label = opts.noName ? html`<span class="sr-only">${h.name}</span>` : html`<span class="hn">${h.name}</span>`;
+    const style = opts.delay != null ? ` style="--d:${opts.delay}"` : opts.k != null ? ` style="--k:${opts.k}"` : '';
+    return html`<a class="${cls}" href="${href(season, 'hero', h.id)}" title="${h.name}${opts.banned ? ' (diban)' : ''}"${html.raw(style)}>${heroFace(h)}${label}</a>`;
+  }
+
+  /** Ikon hero tanpa link (untuk dipakai di dalam elemen yang sudah berupa link). */
   function heroAva(id, size = '') {
     const h = hero(id);
     if (!h) return '';
-    return html`<span class="hero-chip ${size} lane-${h.lane}"><span class="hero-ava" aria-hidden="true">${initials(h.name)}</span></span>`;
+    return html`<span class="hero-chip ${size} lane-${h.lane}">${heroFace(h)}</span>`;
+  }
+
+  /** Kode negara sebagai label teks (emoji bendera tidak tampil di semua perangkat). */
+  function countryTag(code) {
+    if (!code) return '';
+    return html`<span class="ctry" title="${COUNTRY[code] || code.toUpperCase()}">${code.toUpperCase()}</span>`;
   }
 
   function bar(value, max, cls = '') {
@@ -203,5 +214,5 @@
     return html`<span class="bar ${cls}"><i style="width:${w}%"></i></span>`;
   }
 
-  MPL.util = { html, esc, fmt, toSec, LANES, ROLE_ORDER, STAFF_ROLES, AWARD_NAMES, hero, team, initials, flagEmoji, COUNTRY, href, photoOf, extraStaff, personAvatar, nameKey, teamBadge, teamLink, heroChip, heroAva, bar };
+  MPL.util = { html, esc, fmt, toSec, LANES, ROLE_ORDER, STAFF_ROLES, AWARD_NAMES, hero, team, initials, countryTag, COUNTRY, href, photoOf, extraStaff, personAvatar, nameKey, teamBadge, teamLink, heroChip, heroAva, bar };
 })();

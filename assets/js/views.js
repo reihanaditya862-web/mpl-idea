@@ -72,9 +72,21 @@
     )}</ol>`;
   }
 
-  function statTile(k, v, s) {
-    return html`<div class="card stat"><div class="k">${k}</div><div class="v">${v}</div>${s ? html`<div class="s">${s}</div>` : ''}</div>`;
+  /**
+   * Strip angka bergaya papan skor siaran. Setiap item: { k, v, s?, count?, fmt? }.
+   * `count` + `fmt` membuat angka berhitung naik saat halaman tampil (lihat app.js).
+   */
+  function scoreboard(items, cls = '') {
+    return html`<dl class="scoreboard ${cls}">${items.filter(Boolean).map(
+      (x) => html`<div><dt>${x.k}</dt><dd><span class="v"${html.raw(x.count != null ? ` data-count="${x.count}" data-fmt="${x.fmt || 'int'}"` : '')}>${x.v}</span>${x.s ? html`<span class="s">${x.s}</span>` : ''}</dd></div>`
+    )}</dl>`;
   }
+
+  const ICON = {
+    trophy: html.raw('<svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 3h10v3h3v2a5 5 0 0 1-4.2 4.9A5 5 0 0 1 13 15.9V18h3v3H8v-3h3v-2.1A5 5 0 0 1 8.2 12.9 5 5 0 0 1 4 8V6h3zm0 5V8a3 3 0 0 0 0 0zm-1 0a3 3 0 0 0 1 2.2V8zm12 0h-1v2.2A3 3 0 0 0 18 8z" fill="currentColor"/></svg>'),
+    play: html.raw('<svg class="ico" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>'),
+    clock: html.raw('<svg class="ico" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 4.5V8l2.5 1.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'),
+  };
 
   // ================================================================ HOME
   function home(sid, season) {
@@ -119,9 +131,10 @@
       title: meta.name,
       body: html`
       <section class="section banner">
+        <span class="banner-num" aria-hidden="true">${String(season.season).padStart(2, '0')}</span>
         <div class="eyebrow">Mobile Legends: Bang Bang Professional League Indonesia</div>
-        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><h1>${meta.name}</h1>${statusPill}</div>
-        ${meta.tagline ? html`<div class="tagline">“${meta.tagline}”</div>` : ''}
+        <div class="banner-title"><h1>${meta.name}</h1>${statusPill}</div>
+        ${meta.tagline ? html`<div class="tagline">${meta.tagline}</div>` : ''}
         <dl class="banner-meta">
           <div><dt>Jadwal</dt><dd>${fmt.date(meta.startDate, { day: 'numeric', month: 'short' })} – ${fmt.date(meta.endDate)}</dd></div>
           ${rsVenue ? html`<div><dt>Regular Season</dt><dd>${rsVenue.name}, ${rsVenue.city}</dd></div>` : ''}
@@ -141,12 +154,12 @@
       ${feature ? html`<section class="section">${feature}</section>` : ''}
 
       <section class="section">
-        <div class="grid grid-4">
-          ${statTile('Match selesai', html`${sum.matches}<small class="muted" style="font-size:16px"> / ${sum.totalMatches}</small>`, 'Regular season + playoff')}
-          ${statTile('Total game', fmt.int(sum.games), `${S.summary(season, 'regular').games} RS · ${S.summary(season, 'playoffs').games} playoff`)}
-          ${statTile('Durasi rata-rata', fmt.duration(sum.avgDuration), sum.longest ? `Terlama ${fmt.duration(sum.longest.sec)} · tercepat ${fmt.duration(sum.shortest.sec)}` : '')}
-          ${statTile('Win rate blue side', fmt.pct(sum.blueWinRate), `${sum.uniqueHeroes} hero berbeda dipick`)}
-        </div>
+        ${scoreboard([
+          { k: 'Match selesai', v: `${sum.matches}/${sum.totalMatches}`, s: 'Regular season dan playoff' },
+          { k: 'Total game', v: fmt.int(sum.games), count: sum.games, s: `${S.summary(season, 'regular').games} regular season, ${S.summary(season, 'playoffs').games} playoff` },
+          { k: 'Durasi rata-rata', v: fmt.duration(sum.avgDuration), count: Math.round(sum.avgDuration || 0), fmt: 'dur', s: sum.longest ? `Terlama ${fmt.duration(sum.longest.sec)}, tercepat ${fmt.duration(sum.shortest.sec)}` : '' },
+          { k: 'Win rate blue side', v: fmt.pct(sum.blueWinRate), count: sum.blueWinRate != null ? Math.round(sum.blueWinRate * 1000) : null, fmt: 'pct', s: `${sum.uniqueHeroes} hero berbeda dipick` },
+        ])}
       </section>
 
       <section class="section grid grid-2">
@@ -218,7 +231,7 @@
       title: 'Regular Season — ' + season.meta.name,
       body: html`
       <section class="section">
-        <div class="eyebrow">${season.meta.name}</div>
+        <div class="crumb">${season.meta.name}</div>
         ${sectionHead('Regular Season', `Double round robin · setiap match Bo3 · ${weeks.length} minggu · ${sum.matches}/${sum.totalMatches} match selesai`)}
         <div class="card card-pad">${standingsTable(sid, season)}</div>
         <p class="muted" style="font-size:13px;margin-top:10px">Urutan: poin (jumlah match menang) → selisih game → head-to-head.</p>
@@ -264,7 +277,7 @@
       return true;
     });
     return html`<div class="placements">${list.map(
-      (r) => html`<div class="place ${r.p === '1' ? 'p1' : ''}"><span class="p">${r.p === '1' ? '🏆' : r.p}</span>${r.t ? teamLink(sid, r.t) : html`<span class="muted">${label[r.p]} — belum ditentukan</span>`}<span class="prize">${opts.compact ? (r.t ? label[r.p] : '') : fmt.rupiah(S.prizeFor(season, r.p))}</span></div>`
+      (r) => html`<div class="place ${r.p === '1' ? 'p1' : ''}"><span class="p">${r.p === '1' ? ICON.trophy : r.p}</span>${r.t ? teamLink(sid, r.t) : html`<span class="muted">${label[r.p]}: belum ditentukan</span>`}<span class="prize">${opts.compact ? (r.t ? label[r.p] : '') : fmt.rupiah(S.prizeFor(season, r.p))}</span></div>`
     )}</div>`;
   }
 
@@ -295,7 +308,7 @@
       title: 'Playoff — ' + season.meta.name,
       body: html`
       <section class="section">
-        <div class="eyebrow">${season.meta.name}</div>
+        <div class="crumb">${season.meta.name}</div>
         ${sectionHead('Playoff', `${poVenue ? poVenue.name + ', ' + poVenue.city + ' · ' : ''}${dates.length ? fmt.date(dates[0], { day: 'numeric', month: 'short' }) + ' – ' + fmt.date(dates[dates.length - 1]) : ''} · ${boText}`)}
         <p class="muted" style="margin:-4px 0 16px;font-size:14px">Format hybrid: peringkat 1–2 regular season langsung ke Upper Bracket Semifinal, peringkat 3–6 mulai dari Upper Bracket Perempat Final (kalah = tersingkir). Kalah di Upper Bracket Semifinal/Final masih punya kesempatan di Lower Bracket.</p>
         <div class="bracket-scroll card card-pad">
@@ -335,9 +348,12 @@
       const side = g.sides[t];
       return html`${teamBadge(tid, 'sm')}<b>${tid ? team(tid).short : 'TBD'}</b>${side ? html`<span class="side side-${side}">${side}</span>` : ''}${g.winner === t + 1 ? html`<span class="win-tag">MENANG</span>` : ''}`;
     };
+    // Ritme animasi mengikuti urutan pick draft MLBB, sisi blue memilih pertama.
+    const BLUE = [0, 3, 4, 7, 8], RED = [1, 2, 5, 6, 9];
+    const order = (t) => (g.sides[t] === 'red' ? RED : BLUE);
     return html`<div class="draft">
       ${cell(0, head(0), 'dh')}<div class="drole dh" aria-hidden="true"></div>${cell(1, head(1), 'dh')}
-      ${ROLE_ORDER.map((r, i) => html`${cell(0, heroChip(sid, g.picks[0][i]))}<div class="drole"><span>${LANES[r].short}</span></div>${cell(1, heroChip(sid, g.picks[1][i]))}`)}
+      ${ROLE_ORDER.map((r, i) => html`${cell(0, heroChip(sid, g.picks[0][i], { delay: order(0)[i] }))}<div class="drole"><span>${LANES[r].short}</span></div>${cell(1, heroChip(sid, g.picks[1][i], { delay: order(1)[i] }))}`)}
     </div>`;
   }
 
@@ -374,14 +390,14 @@
             <h3>Game ${g.n}</h3>
             <div class="gm">
               <span>Pemenang: <b>${g.winner ? team(m.teams[g.winner - 1]).name : '—'}</b></span>
-              ${g.length ? html`<span>⏱ ${g.length}</span>` : ''}
+              ${g.length ? html`<span class="gm-dur">${ICON.clock}${g.length}</span>` : ''}
               ${g.mode ? html`<span>Map: ${g.mode}</span>` : ''}
-              ${g.vod ? html`<a class="btn btn-sm" href="${g.vod}" target="_blank" rel="noopener">▶ Tonton VOD</a>` : ''}
+              ${g.vod ? html`<a class="btn btn-sm" href="${g.vod}" target="_blank" rel="noopener">${ICON.play}Tonton VOD</a>` : ''}
             </div>
           </header>
           ${draftGrid(sid, m, g)}
           <div class="bans-grid">
-            ${[0, 1].map((t) => html`<div class="bans"><span class="bl">Ban ${m.teams[t] ? team(m.teams[t]).short : ''}</span>${g.bans[t].map((h) => heroChip(sid, h, { size: 'sm', banned: true }))}</div>`)}
+            ${[0, 1].map((t) => html`<div class="bans"><span class="bl">Ban ${m.teams[t] ? team(m.teams[t]).short : ''}</span>${g.bans[t].map((h, k) => heroChip(sid, h, { size: 'sm', banned: true, k: k * 2 + t }))}</div>`)}
           </div>
         </article>`
       )}
@@ -397,7 +413,7 @@
       title: 'Tim — ' + season.meta.name,
       body: html`
       <section class="section">
-        <div class="eyebrow">${season.meta.name}</div>
+        <div class="crumb">${season.meta.name}</div>
         ${sectionHead('Tim peserta', `${rows.length} tim franchise · roster pemain, pelatih, dan analyst`)}
         <div class="team-cards">${rows.map((r) => {
           const t = team(r.team);
@@ -426,7 +442,7 @@
       <div class="person-photo">${photo ? html`<img src="${photo}" alt="Foto ${p.id}" loading="lazy" decoding="async">` : html`<span class="ph-initials" aria-hidden="true">${U.initials(p.id)}</span>`}</div>
       <div class="person-body">
       <span class="role" style="${staff ? 'color:var(--accent-text)' : 'color:var(--lc)'}">${roleLabel}</span>
-      <span class="ign">${p.flag ? html`<span class="flag" title="${U.COUNTRY[p.flag] || p.flag.toUpperCase()}">${U.flagEmoji(p.flag)}</span>` : ''}${p.id}${p.captain ? html`<span class="cap">CAPTAIN</span>` : ''}${p.viceCaptain ? html`<span class="cap" style="background:var(--surface-3);color:var(--text-2)">VICE</span>` : ''}</span>
+      <span class="ign">${p.id}${U.countryTag(p.flag)}${p.captain ? html`<span class="cap">CAPTAIN</span>` : ''}${p.viceCaptain ? html`<span class="cap vice">VICE</span>` : ''}</span>
       ${aka && aka.toLowerCase() !== p.id.toLowerCase() ? html`<span class="aka">dikenal juga: ${aka}</span>` : ''}
       ${p.status === 'sub' ? html`<span class="aka">Cadangan${p.played === false ? ' · belum bermain' : ''}</span>` : ''}
       ${p.status === 'former' ? html`<span class="aka">Keluar di tengah musim</span>` : ''}
@@ -460,18 +476,17 @@
       <a class="back" href="${href(sid, 'teams')}">← Semua tim</a>
       <section class="card team-head" style="--tc:${t.color}">
         ${teamBadge(id, 'xl')}
-        <div>
-          <div class="eyebrow">${season.meta.name}</div>
-          <h1 style="font-size:clamp(26px,4vw,38px)">${t.name}</h1>
-          <div class="facts">
-            <span class="pill pill-accent">Peringkat #${row.rank} regular season</span>
-            <span class="pill">Match ${row.w}–${row.l}</span>
-            <span class="pill">Game ${row.gw}–${row.gl}</span>
-            <span class="pill ${place === '1' ? 'pill-done' : ''}">Playoff: ${placeLabel(place, season)}</span>
-            ${tsAll.blue ? html`<span class="pill">Blue side ${tsAll.blueWins}/${tsAll.blue}</span>` : ''}
-            ${tsAll.avgDuration ? html`<span class="pill">Rata-rata game ${fmt.duration(tsAll.avgDuration)}</span>` : ''}
-          </div>
+        <div class="head-main">
+          <div class="crumb">${season.meta.name}</div>
+          <h1>${t.name}</h1>
         </div>
+        ${scoreboard([
+          { k: 'Regular season', v: '#' + row.rank, s: `${row.w}–${row.l} match` },
+          { k: 'Game', v: `${row.gw}–${row.gl}`, s: `selisih ${fmt.signed(row.diff)}` },
+          { k: 'Playoff', v: placeLabel(place, season) },
+          tsAll.blue ? { k: 'Menang di blue side', v: `${tsAll.blueWins}/${tsAll.blue}` } : null,
+          tsAll.avgDuration ? { k: 'Durasi rata-rata', v: fmt.duration(tsAll.avgDuration) } : null,
+        ], 'compact')}
       </section>
 
       <section class="section">
@@ -536,14 +551,15 @@
       title: 'Statistik Hero — ' + season.meta.name,
       body: html`
       <section class="section">
-        <div class="eyebrow">${season.meta.name}</div>
+        <div class="crumb">${season.meta.name}</div>
         ${sectionHead('Statistik hero', `Pick, ban, presence, dan win rate dari ${hs.games} game${phase === 'all' ? '' : ' ' + PHASES[phase].toLowerCase()}`, phaseTabs(sid, 'heroes', null, phase, { lane }))}
-        <div class="grid grid-4" style="margin-bottom:18px">
-          ${statTile('Game', fmt.int(hs.games), PHASES[phase])}
-          ${statTile('Hero dipakai', hs.list.filter((s) => s.picks).length, `dari ${pool.length} hero · ${hs.list.length} pernah dipick/diban`)}
-          ${mostPicked ? statTile('Paling sering dipick', hero(mostPicked.id).name, `${mostPicked.picks} pick · WR ${fmt.pct(mostPicked.winRate)}`) : ''}
-          ${mostBanned ? statTile('Paling sering diban', hero(mostBanned.id).name, `${mostBanned.bans} ban · presence ${fmt.pct(mostPresent.presence)} (${hero(mostPresent.id).name})`) : ''}
-        </div>
+        ${scoreboard([
+          { k: 'Game', v: fmt.int(hs.games), count: hs.games, s: PHASES[phase] },
+          { k: 'Hero dipick', v: hs.list.filter((s) => s.picks).length, count: hs.list.filter((s) => s.picks).length, s: `dari ${pool.length} hero, ${hs.list.length} pernah dipick atau diban` },
+          mostPicked ? { k: 'Paling sering dipick', v: html`<span class="sb-hero">${heroAva(mostPicked.id, 'sm')}${hero(mostPicked.id).name}</span>`, s: `${mostPicked.picks} pick, win rate ${fmt.pct(mostPicked.winRate)}` } : null,
+          mostBanned ? { k: 'Paling sering diban', v: html`<span class="sb-hero">${heroAva(mostBanned.id, 'sm')}${hero(mostBanned.id).name}</span>`, s: `${mostBanned.bans} ban, presence ${fmt.pct(mostBanned.presence)}` } : null,
+        ])}
+        <div style="height:18px"></div>
         <div class="toolbar">${laneTabs}<input class="search" id="hero-search" type="search" placeholder="Cari hero…" aria-label="Cari hero" value="${params.q || ''}"></div>
         <div class="card"><div class="table-wrap"><table class="data" id="hero-table">
           <thead><tr><th class="c">#</th>${HERO_COLS.map((c) => html`<th class="sortable ${c.str ? '' : 'r'}" data-k="${c.k}" tabindex="0" scope="col">${c.label}</th>`)}<th>Lane</th><th class="r">M–K</th></tr></thead>
@@ -622,16 +638,16 @@
       <a class="back" href="${href(sid, 'heroes', null, { phase })}">← Statistik hero</a>
       <section class="card hero-head lane-${h.lane}">
         ${heroChip(sid, id, { size: 'lg', noName: true })}
-        <div>
-          <div class="eyebrow">${(LANES[h.lane] || LANES.flex).name} · ${season.meta.name}</div>
-          <h1 style="font-size:clamp(28px,4vw,40px)">${h.name}</h1>
-          <div class="kv">
-            <span class="pill pill-accent">${s.picks} pick</span>
-            <span class="pill">${s.bans} ban</span>
-            <span class="pill">Presence ${fmt.pct(s.presence)}</span>
-            <span class="pill ${s.winRate >= 0.5 ? 'pill-done' : ''}">Win rate ${fmt.pct(s.winRate)}</span>
-          </div>
+        <div class="head-main">
+          <div class="crumb">${(LANES[h.lane] || LANES.flex).name} · ${season.meta.name}</div>
+          <h1>${h.name}</h1>
         </div>
+        ${scoreboard([
+          { k: 'Pick', v: s.picks, count: s.picks },
+          { k: 'Ban', v: s.bans, count: s.bans },
+          { k: 'Presence', v: fmt.pct(s.presence), count: Math.round(s.presence * 1000), fmt: 'pct' },
+          { k: 'Win rate', v: fmt.pct(s.winRate), count: s.winRate != null ? Math.round(s.winRate * 1000) : null, fmt: 'pct' },
+        ], 'compact')}
       </section>
       <section class="section">
         ${sectionHead('Ringkasan', '', phaseTabs(sid, 'hero', id, phase))}
@@ -665,7 +681,7 @@
   }
 
   function notFound(sid, msg) {
-    return { title: 'Tidak ditemukan', body: html`<div class="card empty"><h2>Ups!</h2><p style="margin:8px 0 16px">${msg}</p><a class="btn btn-primary" href="${href(sid, 'home')}">Kembali ke beranda</a></div>` };
+    return { title: 'Tidak ditemukan', body: html`<div class="card empty"><h2>Halaman tidak ditemukan</h2><p style="margin:8px 0 16px">${msg}</p><a class="btn btn-primary" href="${href(sid, 'home')}">Kembali ke beranda</a></div>` };
   }
 
   MPL.views = { home, regular, playoffs, teams, team: teamPage, heroes, hero: heroPage, match, notFound, href };
