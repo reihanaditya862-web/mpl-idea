@@ -18,12 +18,7 @@
   };
 
   // ------------------------------------------------------------ helpers
-  function href(sid, view, arg, params) {
-    let h = `#/${sid}/${view}${arg ? '/' + encodeURIComponent(arg) : ''}`;
-    const q = params && Object.entries(params).filter(([, v]) => v != null && v !== '' && v !== 'all');
-    if (q && q.length) h += '?' + q.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-    return h;
-  }
+  const href = U.href;
 
   function phaseTabs(sid, view, arg, current, extra = {}) {
     return html`<div class="tabs" role="tablist" aria-label="Fase turnamen">${Object.entries(PHASES).map(
@@ -661,7 +656,7 @@
   }
 
   function notFound(sid, msg) {
-    return { title: 'Tidak ditemukan', body: html`<div class="card empty"><h2>Ups!</h2><p style="margin:8px 0 16px">${msg}</p><a class="btn btn-primary" href="#/${sid}/home">Kembali ke beranda</a></div>` };
+    return { title: 'Tidak ditemukan', body: html`<div class="card empty"><h2>Ups!</h2><p style="margin:8px 0 16px">${msg}</p><a class="btn btn-primary" href="${href(sid, 'home')}">Kembali ke beranda</a></div>` };
   }
 
   MPL.views = { home, regular, playoffs, teams, team: teamPage, heroes, hero: heroPage, match, notFound, href };

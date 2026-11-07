@@ -118,7 +118,7 @@ body {
   flex-direction: column;
   overflow-x: hidden;
 }
-main { flex: 1; outline: none; padding-top: 24px; padding-bottom: 56px; }
+main { flex: 1; outline: none; padding-block: 24px 56px; }
 a { color: inherit; }
 img, svg { display: block; }
 h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.15; margin: 0; letter-spacing: 0.01em; }
@@ -132,14 +132,15 @@ main:focus, main:focus-visible { outline: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .skip-link { position: absolute; left: 12px; top: -48px; z-index: 100; padding: 8px 14px; background: var(--accent); color: var(--accent-ink); border-radius: 8px; font-weight: 600; text-decoration: none; }
 .skip-link:focus { top: 12px; }
-.wrap { width: 100%; max-width: 1200px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+.wrap { width: 100%; max-width: 1200px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .muted { color: var(--muted); }
 .num { font-variant-numeric: tabular-nums; }
 .nowrap { white-space: nowrap; }
 
 /* ---------- Header ---------- */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--bg); }
 .site-header {
-  position: sticky; top: 0; z-index: 50;
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50;
   background: var(--bg-header);
   backdrop-filter: saturate(160%) blur(14px);
   -webkit-backdrop-filter: saturate(160%) blur(14px);
@@ -187,7 +188,7 @@ main:focus, main:focus-visible { outline: none; }
 
 /* ---------- Footer ---------- */
 .site-footer { border-top: 1px solid var(--border); background: var(--surface); font-size: 13px; }
-.footer-inner { padding-top: 22px; padding-bottom: 26px; display: grid; gap: 6px; color: var(--text-2); }
+.footer-inner { padding-block: 22px 26px; display: grid; gap: 6px; color: var(--text-2); }
 .site-footer a { color: var(--accent-text); }
 
 /* ---------- Generic blocks ---------- */

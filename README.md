@@ -22,7 +22,7 @@ Fitur lain: pilihan musim, tema terang/gelap, dan tampilan responsif untuk HP.
 
 Situs ini statis (HTML, CSS, dan JavaScript tanpa framework dan tanpa build step).
 
-- Cara cepat: buka `index.html` langsung di browser.
+- Cara cepat: buka `index.html` langsung di browser (klik dua kali file-nya). Tidak perlu internet kecuali untuk font.
 - Atau jalankan server lokal:
 
 ```bash

@@ -8,6 +8,7 @@
   const main = document.getElementById('main');
   const select = document.getElementById('season-select');
   const navLinks = document.querySelectorAll('[data-nav]');
+  const brand = document.querySelector('.brand');
   const index = (MPL.index || []).slice().sort((a, b) => b.season - a.season);
   const VIEWS = ['home', 'regular', 'playoffs', 'teams', 'team', 'heroes', 'hero', 'match'];
   const NAV_OF = { home: 'home', regular: 'regular', playoffs: 'playoffs', teams: 'teams', team: 'teams', heroes: 'heroes', hero: 'heroes', match: null };
@@ -32,24 +33,38 @@
   }
 
   // ---------------------------------------------------------- routing
+  const LANE_KEYS = ['exp', 'jungle', 'mid', 'gold', 'roam'];
+  const PHASE_OF = { rs: 'regular', po: 'playoffs' };
+
+  /**
+   * Baca hash berformat #s18-team-onic-po menjadi { sid, view, arg, params }.
+   * Format lama (#/s18/team/onic?phase=playoffs) tetap didukung.
+   */
   function parse() {
-    const raw = decodeURIComponent(location.hash.replace(/^#\/?/, ''));
-    const [path, query = ''] = raw.split('?');
-    const parts = path.split('/').filter(Boolean);
+    const raw = decodeURIComponent(location.hash.replace(/^#/, ''));
     const params = {};
-    query.split('&').filter(Boolean).forEach((kv) => {
-      const [k, v = ''] = kv.split('=');
-      params[k] = v;
-    });
-    let [sid, view, arg] = parts;
-    if (!sid || !index.some((s) => s.id === sid)) {
-      // dukung #/regular tanpa musim
-      if (sid && VIEWS.includes(sid)) {
-        arg = view;
-        view = sid;
-      }
-      sid = index.length ? index[0].id : null;
+    let sid, view, arg;
+    if (raw.startsWith('/')) {
+      const [path, query = ''] = raw.split('?');
+      [sid, view, arg] = path.split('/').filter(Boolean);
+      query.split('&').filter(Boolean).forEach((kv) => {
+        const [k, v = ''] = kv.split('=');
+        params[k] = v;
+      });
+    } else {
+      const t = raw.toLowerCase().split('-').filter(Boolean);
+      if (/^s\d+$/.test(t[0] || '')) sid = t.shift();
+      if (VIEWS.includes(t[0])) view = t.shift();
+      const rest = [];
+      t.forEach((tok) => {
+        if (PHASE_OF[tok]) params.phase = PHASE_OF[tok];
+        else if (view === 'regular' && /^w\d+$/.test(tok)) params.week = tok.slice(1);
+        else if (view === 'heroes' && LANE_KEYS.includes(tok)) params.lane = tok;
+        else rest.push(tok);
+      });
+      arg = rest.join('-') || undefined;
     }
+    if (!sid || !index.some((s) => s.id === sid)) sid = index.length ? index[0].id : null;
     if (!VIEWS.includes(view)) view = 'home';
     return { sid, view, arg, params };
   }
@@ -96,10 +111,11 @@
   function updateChrome(route) {
     navLinks.forEach((a) => {
       const v = a.dataset.nav;
-      a.href = `#/${route.sid}/${v}`;
+      a.href = V.href(route.sid, v);
       if (NAV_OF[route.view] === v) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
     });
+    if (brand) brand.href = V.href(route.sid, 'home');
     if (select.value !== route.sid) select.value = route.sid;
   }
 
@@ -112,7 +128,7 @@
       view = 'regular';
       arg = null;
     }
-    location.hash = `#/${select.value}/${view}${arg ? '/' + arg : ''}`;
+    location.hash = V.href(select.value, view, arg, { phase: r.params.phase, lane: r.params.lane });
   });
 
   // -------------------------------------------------------------- theme

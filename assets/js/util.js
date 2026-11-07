@@ -118,6 +118,23 @@
   }
   const COUNTRY = { id: 'Indonesia', ph: 'Filipina', my: 'Malaysia', sg: 'Singapura', kh: 'Kamboja', mm: 'Myanmar', th: 'Thailand', vn: 'Vietnam', us: 'Amerika Serikat' };
 
+  // ------------------------------------------------------------- Links
+  /**
+   * Bangun link hash berformat sederhana: #s18-team-onic-po.
+   * Format ini hanya memakai huruf, angka, dan tanda hubung supaya aman
+   * dibagikan dan bekerja juga ketika situs disematkan di halaman lain.
+   */
+  const PHASE_CODE = { regular: 'rs', playoffs: 'po' };
+  function href(sid, view, arg, params = {}) {
+    const t = [sid];
+    if (view && view !== 'home') t.push(view);
+    if (arg) t.push(String(arg).toLowerCase());
+    if (params.week) t.push('w' + params.week);
+    if (PHASE_CODE[params.phase]) t.push(PHASE_CODE[params.phase]);
+    if (params.lane && params.lane !== 'all') t.push(params.lane);
+    return '#' + t.join('-');
+  }
+
   // --------------------------------------------------------- Components
   function teamBadge(id, size = '') {
     const t = team(id);
@@ -129,7 +146,7 @@
     const t = team(id);
     if (!t) return html`<span class="team-link">${teamBadge(null, opts.size)}<span class="tn muted">${opts.tbdText || 'TBD'}</span></span>`;
     const label = opts.short ? t.short : t.name;
-    return html`<a class="team-link" href="#/${season}/team/${t.id}">${teamBadge(id, opts.size)}<span class="tn">${label}</span></a>`;
+    return html`<a class="team-link" href="${href(season, 'team', t.id)}">${teamBadge(id, opts.size)}<span class="tn">${label}</span></a>`;
   }
 
   function heroChip(season, id, opts = {}) {
@@ -137,7 +154,7 @@
     if (!h) return html`<span class="hero-chip ${opts.size || ''} lane-flex"><span class="hero-ava" aria-hidden="true">—</span>${opts.noName ? '' : html`<span class="hn muted">Tidak ada</span>`}</span>`;
     const cls = `hero-chip ${opts.size || ''} lane-${h.lane}${opts.banned ? ' banned' : ''}`;
     const label = opts.noName ? html`<span class="sr-only">${h.name}</span>` : html`<span class="hn">${h.name}</span>`;
-    return html`<a class="${cls}" href="#/${season}/hero/${h.id}" title="${h.name}${opts.banned ? ' (dibanned)' : ''}"><span class="hero-ava" aria-hidden="true">${initials(h.name)}</span>${label}</a>`;
+    return html`<a class="${cls}" href="${href(season, 'hero', h.id)}" title="${h.name}${opts.banned ? ' (dibanned)' : ''}"><span class="hero-ava" aria-hidden="true">${initials(h.name)}</span>${label}</a>`;
   }
 
   /** Avatar hero tanpa link (untuk dipakai di dalam elemen yang sudah berupa link). */
@@ -152,5 +169,5 @@
     return html`<span class="bar ${cls}"><i style="width:${w}%"></i></span>`;
   }
 
-  MPL.util = { html, esc, fmt, toSec, LANES, ROLE_ORDER, STAFF_ROLES, AWARD_NAMES, hero, team, initials, flagEmoji, COUNTRY, teamBadge, teamLink, heroChip, heroAva, bar };
+  MPL.util = { html, esc, fmt, toSec, LANES, ROLE_ORDER, STAFF_ROLES, AWARD_NAMES, hero, team, initials, flagEmoji, COUNTRY, href, teamBadge, teamLink, heroChip, heroAva, bar };
 })();
