@@ -1,19 +1,19 @@
 # Skor live MPL ID.
 #
-# Setiap 10 menit pada jam pertandingan (12:00–23:59 WIB), job ini menjalankan
-# scripts/live_update.py selama ±9 menit. Script memeriksa situs resmi MPL ID
-# setiap 45 detik dan commit data/live.json + data/live.js hanya ketika skor
-# berubah. Pada hari tanpa pertandingan, script langsung berhenti setelah satu
-# kali cek.
+# Dijadwalkan setiap 10 menit pada pukul 11:00–00:59 WIB. Setiap run memeriksa
+# situs resmi MPL ID tiap 30 detik selama maksimal 50 menit, selama ada match
+# yang live atau akan mulai, lalu commit data/live.json + data/live.js hanya
+# ketika skor berubah. Tanpa pertandingan, run berhenti setelah satu kali cek.
 #
-# Website (GitHub Pages) membaca data/live.json ulang setiap 30 detik, jadi skor
-# di website tertinggal kira-kira 1–2 menit dari situs resmi, ditambah waktu
-# deploy GitHub Pages.
+# Run berikutnya selalu mengantre (concurrency tanpa pembatalan), jadi begitu
+# satu run berjalan, pemantauan tersambung terus walaupun jadwal GitHub sering
+# terlambat. Website membaca data/live.json ulang setiap 30 detik; skor
+# tertinggal kira-kira 1–2 menit dari situs resmi, ditambah waktu deploy.
 name: Skor live MPL ID
 
 on:
   schedule:
-    - cron: "*/10 5-16 * * *"
+    - cron: "*/10 4-17 * * *"
   workflow_dispatch:
 
 permissions:
@@ -27,7 +27,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 58
     steps:
       - uses: actions/checkout@v4
 
@@ -36,8 +36,8 @@ jobs:
           git config user.name "mpl-live-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Perbarui skor live (±9 menit)
+      - name: Perbarui skor live (maks. 50 menit)
         env:
           GH_TOKEN: ${{ github.token }}
           MPL_PAGES_WORKFLOW: pages.yml
-        run: python3 scripts/live_update.py --watch 45 --max-minutes 9 --idle-exit --git
+        run: python3 scripts/live_update.py --watch 30 --max-minutes 50 --idle-exit --git

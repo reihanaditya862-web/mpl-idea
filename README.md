@@ -32,7 +32,7 @@ Cara kerjanya:
 
 Repo ini sudah berisi dua workflow:
 
-- **Skor live MPL ID** (`.github/workflows/live-score.yml`) berjalan setiap 10 menit pada pukul 12.00–23.59 WIB. Setiap kali berjalan, ia memeriksa situs resmi tiap 45 detik selama ±9 menit, lalu commit `data/live.*` hanya saat skor berubah. Pada hari tanpa pertandingan, ia langsung berhenti.
+- **Skor live MPL ID** (`.github/workflows/live-score.yml`) dijadwalkan setiap 10 menit pada pukul 11.00–00.59 WIB. Setiap run memeriksa situs resmi tiap 30 detik selama maksimal 50 menit (selama ada match yang live atau akan mulai), lalu commit `data/live.*` hanya saat skor berubah. Run berikutnya selalu mengantre, jadi pemantauan tetap tersambung walaupun jadwal GitHub terlambat. Pada hari tanpa pertandingan, run langsung berhenti.
 - **Deploy website** (`.github/workflows/pages.yml`) men-deploy website ke GitHub Pages setiap ada push, dan setiap kali skor live berubah.
 
 Yang perlu dilakukan sekali saja:
@@ -41,7 +41,7 @@ Yang perlu dilakukan sekali saja:
 2. Pada **Build and deployment → Source**, pilih **GitHub Actions**.
 3. Website akan tersedia di `https://<username>.github.io/<nama-repo>/`. Untuk repo ini: <https://reihanaditya862-web.github.io/mpl-idea/>.
 
-Jadwal GitHub Actions kadang terlambat beberapa menit. Biasanya skor di website tertinggal sekitar 1–3 menit dari situs resmi.
+Jadwal GitHub Actions bisa terlambat, terutama pada hari-hari pertama setelah workflow dibuat. Untuk memastikan pemantauan sudah berjalan sebelum match, buka tab **Actions → Skor live MPL ID → Run workflow**. Setelah berjalan, skor di website biasanya tertinggal sekitar 1–3 menit dari situs resmi.
 
 ### Live di komputer sendiri
 
