@@ -632,7 +632,7 @@ table.data td.c, table.data th.c { text-align: center; }
 .live-meta { color: var(--text-2); }
 .live-note { color: var(--muted); font-size: 13px; }
 .live-watch { margin-left: auto; }
-@media (max-width: 600px) { .live-note { flex-basis: 100%; order: 5; } .live-watch { margin-left: 0; } }
+@media (max-width: 600px) { .live-note { display: none; } .live-inner { gap: 6px 10px; padding-block: 6px; } .live-watch { margin-left: auto; padding: 5px 9px; } .live-meta { font-size: 13px; } }
 .match-card.is-live, .b-match.is-live { border-color: color-mix(in srgb, var(--loss) 55%, var(--border)); }
 .mh-score.is-live { box-shadow: inset 0 -3px 0 var(--loss); }
 .feature-score { font-variant-numeric: tabular-nums; color: var(--accent-text); padding: 0 6px; }
