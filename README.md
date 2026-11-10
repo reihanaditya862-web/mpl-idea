@@ -32,7 +32,7 @@ Cara kerjanya:
 
 Repo ini sudah berisi dua workflow:
 
-- **Skor live MPL ID** (`.github/workflows/live-score.yml`) dijadwalkan setiap 10 menit pada pukul 11.00–00.59 WIB. Setiap run memeriksa situs resmi tiap 30 detik selama maksimal 50 menit (selama ada match yang live atau akan mulai), lalu commit `data/live.*` hanya saat skor berubah. Run berikutnya selalu mengantre, jadi pemantauan tetap tersambung walaupun jadwal GitHub terlambat. Pada hari tanpa pertandingan, run langsung berhenti.
+- **Skor live MPL ID** (`.github/workflows/live-score.yml`) dijadwalkan setiap 10 menit pada pukul 11.00–00.59 WIB. Setiap run memeriksa situs resmi tiap 30 detik selama maksimal 50 menit (selama ada match yang live atau akan mulai), lalu commit `data/live.*` hanya saat skor berubah. Jadwal GitHub sering terlambat atau dilewati, jadi setiap run yang habis waktunya memicu run berikutnya sendiri selama match masih berlangsung (atau akan mulai dalam 3 jam). Cukup satu jadwal yang berhasil jalan untuk memantau seluruh hari pertandingan. Pada hari tanpa pertandingan, run langsung berhenti.
 - **Deploy website** (`.github/workflows/pages.yml`) men-deploy website ke GitHub Pages setiap ada push, dan setiap kali skor live berubah.
 
 Yang perlu dilakukan sekali saja:

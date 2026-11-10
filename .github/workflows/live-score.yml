@@ -5,10 +5,11 @@
 # yang live atau akan mulai, lalu commit data/live.json + data/live.js hanya
 # ketika skor berubah. Tanpa pertandingan, run berhenti setelah satu kali cek.
 #
-# Run berikutnya selalu mengantre (concurrency tanpa pembatalan), jadi begitu
-# satu run berjalan, pemantauan tersambung terus walaupun jadwal GitHub sering
-# terlambat. Website membaca data/live.json ulang setiap 30 detik; skor
-# tertinggal kira-kira 1–2 menit dari situs resmi, ditambah waktu deploy.
+# Jadwal GitHub sering terlambat atau dilewati. Karena itu, saat waktunya habis
+# dan match masih live (atau akan mulai dalam 3 jam), run ini memicu run
+# berikutnya sendiri (--relay). Cukup satu jadwal yang berhasil jalan untuk
+# memantau seluruh hari pertandingan. Website membaca data/live.json ulang
+# setiap 30 detik; skor tertinggal kira-kira 1–2 menit dari situs resmi.
 name: Skor live MPL ID
 
 on:
@@ -40,4 +41,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           MPL_PAGES_WORKFLOW: pages.yml
-        run: python3 scripts/live_update.py --watch 30 --max-minutes 50 --idle-exit --git
+        run: python3 scripts/live_update.py --watch 30 --max-minutes 50 --idle-exit --git --relay live-score.yml

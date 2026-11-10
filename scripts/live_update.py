@@ -8,9 +8,9 @@ data/live.js (salinan untuk dibuka langsung dari file / halaman statis).
 Pemakaian:
     python3 scripts/live_update.py                    # ambil sekali
     python3 scripts/live_update.py --watch 30         # ulangi tiap 30 detik
-    python3 scripts/live_update.py --watch 45 --max-minutes 9 --git
-        # dipakai GitHub Actions: berhenti setelah 9 menit, commit & push
-        # data/live.* setiap kali skor berubah
+    python3 scripts/live_update.py --watch 30 --max-minutes 50 --idle-exit --git --relay live-score.yml
+        # dipakai GitHub Actions: commit & push data/live.* setiap skor berubah,
+        # lalu memicu run berikutnya sendiri selama masih ada match
 
 Yang diambil:
   * semua match (regular season & playoff): tim, waktu, skor seri, status
@@ -278,18 +278,25 @@ def summarize(data: dict) -> str:
 
 
 def active_window(data: dict, now: datetime) -> bool:
-    """Ada match live, atau dimulai dalam 90 menit ke depan, atau baru selesai."""
+    """Ada match live, atau dimulai dalam 3 jam ke depan, atau seharusnya sudah mulai."""
     for m in data["matches"]:
         if m["status"] == "live":
             return True
         if not m["date"]:
             continue
         start = datetime.fromisoformat(m["date"])
-        if m["status"] == "upcoming" and timedelta(0) <= start - now <= timedelta(minutes=90):
+        if m["status"] == "upcoming" and timedelta(0) <= start - now <= timedelta(hours=3):
             return True
         if m["status"] == "upcoming" and now >= start and now - start < timedelta(hours=8):
             return True
     return False
+
+
+def relay(workflow: str) -> None:
+    """Picu run berikutnya dari workflow ini (jadwal GitHub sering dilewati)."""
+    branch = subprocess.run(["git", "branch", "--show-current"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    r = subprocess.run(["gh", "workflow", "run", workflow, "--ref", branch or "HEAD"], cwd=ROOT)
+    print("Run berikutnya dipicu." if r.returncode == 0 else "Gagal memicu run berikutnya.", flush=True)
 
 
 def main() -> None:
@@ -298,8 +305,11 @@ def main() -> None:
     ap.add_argument("--max-minutes", type=float, default=0, help="berhenti setelah N menit (mode --watch)")
     ap.add_argument("--git", action="store_true", help="commit & push data/live.* saat berubah")
     ap.add_argument("--idle-exit", action="store_true", help="berhenti bila tidak ada match yang live/dekat")
+    ap.add_argument("--relay", metavar="WORKFLOW",
+                    help="saat --max-minutes habis dan masih ada match, picu workflow ini lagi (butuh gh + GH_TOKEN)")
     args = ap.parse_args()
     t0 = time.time()
+    data = None
     while True:
         now = datetime.now(WIB)
         prev = load_previous()
@@ -317,7 +327,11 @@ def main() -> None:
             if args.idle_exit and not active_window(data, now):
                 print("Tidak ada match yang live atau akan mulai; berhenti.", flush=True)
                 break
-        if not args.watch or (args.max_minutes and time.time() - t0 > args.max_minutes * 60):
+        if not args.watch:
+            break
+        if args.max_minutes and time.time() - t0 > args.max_minutes * 60:
+            if args.relay and data and active_window(data, datetime.now(WIB)):
+                relay(args.relay)
             break
         time.sleep(args.watch)
 
