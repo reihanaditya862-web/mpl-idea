@@ -115,7 +115,7 @@
         ${teamBadge(champ.team, 'xl')}
         <div><div class="label">Juara ${meta.shortName || meta.name}</div><h3>${t.name}</h3>
           <p class="muted">Menang ${Math.max(...champ.match.score)}–${Math.min(...champ.match.score)} atas ${team(champ.runnerUp).name} di Grand Final${fm ? html` · MVP Final: <b>${fm.player}</b>` : mvp ? html` · MVP: <b>${mvp.name}</b>` : ''}</p></div>
-        <span class="btn btn-sm">Lihat draft final →</span></a>`;
+        <span class="btn btn-sm">${champ.match.games.length ? 'Lihat draft final' : 'Lihat statistik final'} →</span></a>`;
     } else if (next) {
       const gf = season.playoffs.matches.find((m) => m.slot === 'R4M1');
       feature = html`<a class="feature card" href="${href(sid, 'match', next.id)}" style="text-decoration:none">
